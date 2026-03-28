@@ -309,7 +309,7 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 
 <script>
 // ==================== 設定 ====================
-var API_URL = localStorage.getItem('rfid_api_url') || 'https://script.google.com/macros/s/AKfycbwxmgh9l8CdnF2teDgvSXFvulY-MCajtzuX7vkfq21fgq4s-zeVAjk0KTaVbGdK1w/exec';
+var API_URL = localStorage.getItem('rfid_api_url') || 'https://script.google.com/macros/s/AKfycbydONhc4hhggP1eg0QGM2pc9BIaffRsC5zAuFKvhs7L6kME-_kxFNCpCmqPrQJjNR8/exec';
 var scannedTags = [];
 var isScanning = false;
 var currentOp = 'arrival';
@@ -385,14 +385,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.key && e.key.length === 1) {
       _dwBuffer += e.key;
       updateScanDebug('バッファ: ' + _dwBuffer);
-      // 安全タイマー: 3秒入力がなければバッファクリア
+      // 安全タイマー: 500ms入力途絶でバッファ確定（タグとして処理）
       clearTimeout(_dwTimer);
       _dwTimer = setTimeout(function() {
         if (_dwBuffer.length > 0) {
-          updateScanDebug('タイムアウト: バッファクリア');
+          addTag(_dwBuffer.trim());
+          updateScanDebug('タイムアウト確定: ' + _dwBuffer.trim());
           _dwBuffer = '';
         }
-      }, 3000);
+      }, 500);
     }
   });
 
@@ -515,16 +516,62 @@ function updateScanDebug(msg) {
   }
 }
 
+// タグIDプレフィックスパターン（自社タグの先頭文字列）
+// スプレッドシートのタグマスタに登録されたタグはすべてこのパターンで始まる
+var TAG_PREFIX = 'E2806A96';
+var TAG_LENGTH = 24; // 1タグIDの標準文字数
+
 function addTag(tagId) {
-  tagId = tagId.trim();
+  tagId = tagId.trim().toUpperCase();
   if (!tagId) return;
-  if (scannedTags.indexOf(tagId) !== -1) {
-    toast('重複: ' + tagId, 'err');
-    return;
-  }
-  scannedTags.push(tagId);
+
+  // 結合タグの自動分割: TAG_PREFIXが複数含まれている場合
+  var splitTags = splitConcatenatedTags(tagId);
+
+  splitTags.forEach(function(tid) {
+    // 自社タグプレフィックスチェック（未登録タグ除外）
+    if (TAG_PREFIX && !tid.startsWith(TAG_PREFIX)) {
+      updateScanDebug('除外（非対象タグ）: ' + tid.substring(0, 16) + '...');
+      return;
+    }
+    if (scannedTags.indexOf(tid) !== -1) {
+      // 重複は静かにスキップ（連続読み取りでは頻繁に発生するため）
+      return;
+    }
+    scannedTags.push(tid);
+    if (navigator.vibrate) navigator.vibrate(50);
+  });
+
   updateTagDisplay();
-  if (navigator.vibrate) navigator.vibrate(100);
+  if (splitTags.length > 1) {
+    updateScanDebug(splitTags.length + '個のタグを分割検出');
+  }
+}
+
+// 結合されたタグIDを分割する
+function splitConcatenatedTags(raw) {
+  if (!raw) return [];
+
+  // TAG_PREFIXで分割を試みる
+  if (TAG_PREFIX && raw.indexOf(TAG_PREFIX) !== -1) {
+    var parts = [];
+    var remaining = raw;
+    while (remaining.length > 0) {
+      var nextIdx = remaining.indexOf(TAG_PREFIX, 1);
+      if (nextIdx > 0) {
+        parts.push(remaining.substring(0, nextIdx));
+        remaining = remaining.substring(nextIdx);
+      } else {
+        parts.push(remaining);
+        remaining = '';
+      }
+    }
+    // 有効なタグのみ返す（極端に短いゴミデータを除外）
+    return parts.filter(function(p) { return p.length >= 16; });
+  }
+
+  // プレフィックスが一致しない場合はそのまま返す
+  return [raw];
 }
 
 function removeTag(idx) {
