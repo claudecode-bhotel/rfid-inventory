@@ -81,14 +81,7 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 .scan-area .scan-label { font-size: 14px; color: var(--text2); }
 .scan-area.scanning .scan-label { color: var(--success); font-weight: 600; }
 .scan-count { font-size: 24px; font-weight: 700; color: var(--primary); margin: 8px 0; }
-#scan-input {
-  width: 100%; padding: 10px 12px; border: 2px solid var(--border); border-radius: 8px;
-  font-size: 16px; font-family: monospace; margin-top: 8px; background: #FAFAFA;
-  text-align: center; color: var(--text);
-}
-#scan-input:focus { border-color: var(--primary); outline: none; background: #fff; }
-#scan-input.scanning-active { border-color: var(--success); background: var(--success-light); }
-.scan-debug { font-size: 11px; color: var(--text2); margin-top: 4px; text-align: center; }
+#scan-input { position: absolute; left: -9999px; opacity: 0; }
 
 /* タグカウント */
 .tag-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
@@ -197,10 +190,8 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
       <div class="scan-label" id="scan-label">タップしてスキャン開始</div>
       <div class="scan-count" id="scan-count" style="display:none">読取: <span id="tag-count-num">0</span> 件</div>
     </div>
-    <!-- DataWedge入力フィールド（可視化） -->
-    <input type="text" id="scan-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-           placeholder="スキャン待機中..." inputmode="none" readonly>
-    <div class="scan-debug" id="scan-debug"></div>
+    <!-- DataWedge用の非表示入力フィールド -->
+    <input type="text" id="scan-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
 
     <!-- 読み取り済みカウント表示 -->
     <div id="scanned-tags" style="display:none">
@@ -273,32 +264,14 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
       Zebraデバイスで以下のDataWedgeプロファイルを設定してください:
     </p>
     <ol style="font-size:13px; color:var(--text2); line-height:1.8; padding-left:20px; margin-top:8px">
-      <li><strong>DataWedgeアプリ</strong>を開く</li>
-      <li>新しいプロファイルを作成（名前: <strong>RFID在庫管理</strong>）</li>
-      <li><strong>関連付けアプリ</strong> → 使用するブラウザを選択
-        <br><span style="color:#1565C0">Chrome: com.android.chrome</span>
-        <br><span style="color:#1565C0">Enterprise Browser: com.symbol.enterprisebrowser</span>
-      </li>
-      <li><strong>Input</strong> → <strong>RFID Input</strong> → <strong>有効化</strong>（Enabled）</li>
-      <li><strong>Output</strong> → <strong>Keystroke Output</strong> → <strong>有効化</strong>（Enabled）</li>
-      <li><strong>キーストローク間遅延</strong>（Inter character delay） → <strong>50ms</strong>
-        <br><span style="color:#E65100">※ RFID入力には50ms必須</span>
-      </li>
-      <li><strong>Key event options</strong> → <strong>Send Characters as Events</strong> → <strong>チェックを入れる</strong>
-        <br><span style="color:#E65100">※ ブラウザにキーイベントとして送信するために必須</span>
-      </li>
-      <li><strong>データ末尾アクション</strong>（Action key character） → <strong>Enter</strong>（改行）</li>
+      <li>DataWedgeアプリを開く</li>
+      <li>新しいプロファイルを作成（名前: RFID在庫管理）</li>
+      <li>関連付けアプリ → ブラウザ（Chrome / Enterprise Browser）を選択</li>
+      <li>Input → RFID Input → 有効化</li>
+      <li>Output → Keystroke Output → 有効化</li>
+      <li>キーストローク間遅延 → 50ms</li>
+      <li>データ末尾アクション → Enter（改行）</li>
     </ol>
-    <div style="margin-top:12px; padding:10px; background:#FFF3E0; border-radius:8px; border:1px solid #FFE0B2;">
-      <strong style="font-size:13px; color:#E65100;">トラブルシューティング</strong>
-      <ul style="font-size:12px; color:var(--text2); line-height:1.8; padding-left:16px; margin-top:4px">
-        <li>「スキャン開始」をタップ後、入力フィールドに緑色の枠が表示されることを確認</li>
-        <li>RFIDトリガーを引いた後、入力フィールドに文字が表示されるか確認</li>
-        <li>文字が表示されない場合 → DataWedgeプロファイルの「関連付けアプリ」がブラウザと一致しているか確認</li>
-        <li>Profile0（デフォルト）が干渉する場合 → Profile0を無効化</li>
-        <li>123RFID Mobileで読み取れる場合はハードウェアは正常です</li>
-      </ul>
-    </div>
   </div>
   <div class="card">
     <h2>システム管理</h2>
@@ -311,13 +284,11 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 
 <script>
 // ==================== 設定 ====================
-var API_URL = localStorage.getItem('rfid_api_url') || 'https://script.google.com/macros/s/AKfycbydONhc4hhggP1eg0QGM2pc9BIaffRsC5zAuFKvhs7L6kME-_kxFNCpCmqPrQJjNR8/exec';
+var API_URL = localStorage.getItem('rfid_api_url') || '';
 var scannedTags = [];
 var isScanning = false;
 var currentOp = 'arrival';
 var opNameMap = { arrival: '入荷', shipment: '出庫', return: '入庫' };
-// タグID → 品目名マッピング（API起動時にロード）
-var tagItemMap = {};
 
 // ==================== 初期化 ====================
 document.addEventListener('DOMContentLoaded', function() {
@@ -342,62 +313,16 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // ==================== DataWedge 入力ハンドラ ====================
-  // 方式1: 入力フィールドへの直接入力（Keystroke Output標準モード）
+  // DataWedge入力ハンドラ
   var scanInput = document.getElementById('scan-input');
   scanInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' || e.keyCode === 13) {
       e.preventDefault();
       var val = scanInput.value.trim();
-      if (val && isScanning) {
+      if (val) {
         addTag(val);
         scanInput.value = '';
-        updateScanDebug('入力フィールド経由: ' + val);
       }
-    }
-  });
-  // input イベントでリアルタイム表示
-  scanInput.addEventListener('input', function() {
-    if (isScanning && scanInput.value) {
-      updateScanDebug('受信中: ' + scanInput.value);
-    }
-  });
-
-  // 方式2: documentレベルのキーイベント（Send Characters as Eventsモード）
-  var _dwBuffer = '';
-  var _dwTimer = null;
-  document.addEventListener('keydown', function(e) {
-    if (!isScanning) return;
-    // 入力フィールドにフォーカスがある場合は方式1で処理するのでスキップ
-    if (document.activeElement === scanInput) return;
-    // テキスト入力系の要素にフォーカスがある場合はスキップ
-    var tag = (document.activeElement || {}).tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-
-    if (e.key === 'Enter' || e.keyCode === 13) {
-      e.preventDefault();
-      if (_dwBuffer.length > 0) {
-        addTag(_dwBuffer.trim());
-        updateScanDebug('キーイベント経由: ' + _dwBuffer.trim());
-        _dwBuffer = '';
-      }
-      clearTimeout(_dwTimer);
-      return;
-    }
-
-    // 通常文字（1文字）をバッファに蓄積
-    if (e.key && e.key.length === 1) {
-      _dwBuffer += e.key;
-      updateScanDebug('バッファ: ' + _dwBuffer);
-      // 安全タイマー: 500ms入力途絶でバッファ確定（タグとして処理）
-      clearTimeout(_dwTimer);
-      _dwTimer = setTimeout(function() {
-        if (_dwBuffer.length > 0) {
-          addTag(_dwBuffer.trim());
-          updateScanDebug('タイムアウト確定: ' + _dwBuffer.trim());
-          _dwBuffer = '';
-        }
-      }, 500);
     }
   });
 
@@ -476,21 +401,10 @@ function startScan() {
 
   var input = document.getElementById('scan-input');
   input.value = '';
-  input.readOnly = false;
-  input.placeholder = 'DataWedgeからの入力を待機中...';
-  input.classList.add('scanning-active');
   input.focus();
-  updateScanDebug('スキャン開始 — RFIDトリガーを引いてください');
 
-  // フォーカス維持（500ms間隔）ただしユーザーが他のフィールドを操作中は邪魔しない
   window._scanFocusInterval = setInterval(function() {
-    if (!isScanning) return;
-    var active = document.activeElement;
-    var tag = active ? active.tagName : '';
-    // 他のINPUT/TEXTAREA/SELECTにフォーカスがある場合はスキップ
-    if (tag === 'INPUT' && active !== input) return;
-    if (tag === 'TEXTAREA' || tag === 'SELECT') return;
-    if (active !== input) input.focus();
+    if (isScanning && document.activeElement !== input) input.focus();
   }, 500);
 }
 
@@ -501,86 +415,18 @@ function stopScan() {
   area.classList.remove('scanning');
   document.getElementById('scan-icon').textContent = '📡';
   document.getElementById('scan-label').textContent = 'タップしてスキャン開始';
-
-  var input = document.getElementById('scan-input');
-  input.readOnly = true;
-  input.placeholder = 'スキャン待機中...';
-  input.classList.remove('scanning-active');
-  input.value = '';
-  updateScanDebug('');
 }
-
-function updateScanDebug(msg) {
-  var el = document.getElementById('scan-debug');
-  if (el) {
-    el.textContent = msg;
-    if (msg) {
-      el.style.display = 'block';
-    }
-  }
-}
-
-// タグIDプレフィックスパターン（自社タグの先頭文字列）
-// スプレッドシートのタグマスタに登録されたタグはすべてこのパターンで始まる
-var TAG_PREFIX = 'E2806A96';
-var TAG_LENGTH = 24; // 1タグIDの標準文字数
 
 function addTag(tagId) {
-  tagId = tagId.trim().toUpperCase();
+  tagId = tagId.trim();
   if (!tagId) return;
-
-  // 結合タグの自動分割: TAG_PREFIXが複数含まれている場合
-  var splitTags = splitConcatenatedTags(tagId);
-
-  splitTags.forEach(function(tid) {
-    // 自社タグプレフィックスチェック（未登録タグ除外）
-    if (TAG_PREFIX && !tid.startsWith(TAG_PREFIX)) {
-      updateScanDebug('除外（非対象タグ）: ' + tid.substring(0, 16) + '...');
-      return;
-    }
-    if (scannedTags.indexOf(tid) !== -1) {
-      // 重複は静かにスキップ（連続読み取りでは頻繁に発生するため）
-      return;
-    }
-    scannedTags.push(tid);
-    if (navigator.vibrate) navigator.vibrate(50);
-  });
-
+  if (scannedTags.indexOf(tagId) !== -1) {
+    toast('重複: ' + tagId, 'err');
+    return;
+  }
+  scannedTags.push(tagId);
   updateTagDisplay();
-  if (splitTags.length > 1) {
-    updateScanDebug(splitTags.length + '個のタグを分割検出');
-  }
-}
-
-// 結合されたタグIDを分割する
-function splitConcatenatedTags(raw) {
-  if (!raw) return [];
-
-  // TAG_PREFIXで分割を試みる
-  if (TAG_PREFIX && raw.indexOf(TAG_PREFIX) !== -1) {
-    var parts = [];
-    var remaining = raw;
-    while (remaining.length > 0) {
-      var nextIdx = remaining.indexOf(TAG_PREFIX, 1);
-      if (nextIdx > 0) {
-        parts.push(remaining.substring(0, nextIdx));
-        remaining = remaining.substring(nextIdx);
-      } else {
-        parts.push(remaining);
-        remaining = '';
-      }
-    }
-    // 有効なタグのみ返す + TAG_LENGTHで切り詰め（非対象タグが末尾に結合した場合の対策）
-    return parts.filter(function(p) { return p.length >= 16; }).map(function(p) {
-      if (TAG_LENGTH && p.startsWith(TAG_PREFIX) && p.length > TAG_LENGTH) {
-        return p.substring(0, TAG_LENGTH);
-      }
-      return p;
-    });
-  }
-
-  // プレフィックスが一致しない場合はそのまま返す
-  return [raw];
+  if (navigator.vibrate) navigator.vibrate(100);
 }
 
 function removeTag(idx) {
@@ -623,14 +469,10 @@ function loadTestTags() {
   if (!API_URL) return;
   apiGet('tags').then(function(r) {
     if (!r.success || !r.tags.length) return;
-    // タグID→品目名マッピングを構築
-    r.tags.forEach(function(t) {
-      tagItemMap[t.id] = t.itemName || t.itemCode || '不明';
-    });
     var html = '<div style="font-size:12px; color:var(--text2); margin-bottom:6px">テストタグ（タップで追加）:</div>';
     html += '<div style="display:flex; flex-wrap:wrap; gap:4px">';
     r.tags.forEach(function(t) {
-      html += '<button class="btn btn-sm btn-outline" style="font-size:11px;padding:4px 8px" onclick="addTag(\'' + t.id + '\')">' + (t.itemName || t.id) + '</button>';
+      html += '<button class="btn btn-sm btn-outline" style="font-size:11px;padding:4px 8px" onclick="addTag(\'' + t.id + '\')">' + t.id + '</button>';
     });
     html += '</div>';
     document.getElementById('test-tag-grid').innerHTML = html;
