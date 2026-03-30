@@ -206,7 +206,7 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
     <!-- 読み取り済みタグリスト -->
     <div id="scanned-tags" style="display:none">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-        <strong style="font-size:13px">読み取りタグ</strong>
+        <strong style="font-size:13px">読み取り状況</strong>
         <button class="btn btn-sm btn-outline" onclick="clearTags()">全クリア</button>
       </div>
       <div class="tag-list" id="tag-list"></div>
@@ -314,6 +314,8 @@ var scannedTags = [];
 var isScanning = false;
 var currentOp = 'arrival';
 var opNameMap = { arrival: '入荷', shipment: '出庫', return: '入庫' };
+// タグID → 品目名マッピング（API起動時にロード）
+var tagItemMap = {};
 
 // ==================== 初期化 ====================
 document.addEventListener('DOMContentLoaded', function() {
@@ -566,8 +568,13 @@ function splitConcatenatedTags(raw) {
         remaining = '';
       }
     }
-    // 有効なタグのみ返す（極端に短いゴミデータを除外）
-    return parts.filter(function(p) { return p.length >= 16; });
+    // 有効なタグのみ返す + TAG_LENGTHで切り詰め（非対象タグが末尾に結合した場合の対策）
+    return parts.filter(function(p) { return p.length >= 16; }).map(function(p) {
+      if (TAG_LENGTH && p.startsWith(TAG_PREFIX) && p.length > TAG_LENGTH) {
+        return p.substring(0, TAG_LENGTH);
+      }
+      return p;
+    });
   }
 
   // プレフィックスが一致しない場合はそのまま返す
@@ -590,11 +597,40 @@ function updateTagDisplay() {
   document.getElementById('scan-count').style.display = count > 0 ? 'block' : 'none';
   document.getElementById('scanned-tags').style.display = count > 0 ? 'block' : 'none';
 
-  var html = '';
-  scannedTags.forEach(function(tag, idx) {
-    html += '<div class="tag-item"><span class="tag-id">' + tag + '</span>';
-    html += '<span class="tag-remove" onclick="removeTag(' + idx + ')">✕</span></div>';
+  // 品目別集計を計算
+  var itemCounts = {};
+  var unknownCount = 0;
+  scannedTags.forEach(function(tag) {
+    var itemName = tagItemMap[tag];
+    if (itemName) {
+      itemCounts[itemName] = (itemCounts[itemName] || 0) + 1;
+    } else {
+      unknownCount++;
+    }
   });
+
+  var html = '';
+  if (count > 0) {
+    html += '<div style="display:flex; flex-direction:column; gap:6px">';
+    Object.keys(itemCounts).forEach(function(name) {
+      html += '<div class="tag-item" style="justify-content:space-between">';
+      html += '<span style="font-weight:600">' + name + '</span>';
+      html += '<span class="count" style="font-size:18px; font-weight:700; color:var(--primary)">' + itemCounts[name] + '</span>';
+      html += '</div>';
+    });
+    if (unknownCount > 0) {
+      html += '<div class="tag-item" style="justify-content:space-between">';
+      html += '<span style="font-weight:600; color:var(--warning)">未登録タグ</span>';
+      html += '<span class="count" style="font-size:18px; font-weight:700; color:var(--warning)">' + unknownCount + '</span>';
+      html += '</div>';
+    }
+    html += '</div>';
+    html += '<div style="text-align:right; margin-top:8px; padding-top:8px; border-top:1px solid var(--border)">';
+    html += '<span style="font-size:12px; color:var(--text2)">合計</span> ';
+    html += '<span style="font-size:22px; font-weight:700">' + count + '</span>';
+    html += '<span style="font-size:12px; color:var(--text2)"> 件</span>';
+    html += '</div>';
+  }
   document.getElementById('tag-list').innerHTML = html;
 
   var btn = document.getElementById('exec-btn');
@@ -620,10 +656,14 @@ function loadTestTags() {
   if (!API_URL) return;
   apiGet('tags').then(function(r) {
     if (!r.success || !r.tags.length) return;
+    // タグID→品目名マッピングを構築
+    r.tags.forEach(function(t) {
+      tagItemMap[t.id] = t.itemName || t.itemCode || '不明';
+    });
     var html = '<div style="font-size:12px; color:var(--text2); margin-bottom:6px">テストタグ（タップで追加）:</div>';
     html += '<div style="display:flex; flex-wrap:wrap; gap:4px">';
     r.tags.forEach(function(t) {
-      html += '<button class="btn btn-sm btn-outline" style="font-size:11px;padding:4px 8px" onclick="addTag(\'' + t.id + '\')">' + t.id + '</button>';
+      html += '<button class="btn btn-sm btn-outline" style="font-size:11px;padding:4px 8px" onclick="addTag(\'' + t.id + '\')">' + (t.itemName || t.id) + '</button>';
     });
     html += '</div>';
     document.getElementById('test-tag-grid').innerHTML = html;
