@@ -90,8 +90,7 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 #scan-input.scanning-active { border-color: var(--success); background: var(--success-light); }
 .scan-debug { font-size: 11px; color: var(--text2); margin-top: 4px; text-align: center; }
 
-/* タグリスト */
-.tag-list { max-height: 200px; overflow-y: auto; margin: 8px 0; }
+/* タグカウント */
 .tag-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
 .tag-item .tag-id { font-weight: 600; font-family: monospace; }
 .tag-item .tag-remove { color: var(--danger); cursor: pointer; font-size: 18px; padding: 0 4px; }
@@ -203,13 +202,16 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
            placeholder="スキャン待機中..." inputmode="none" readonly>
     <div class="scan-debug" id="scan-debug"></div>
 
-    <!-- 読み取り済みタグリスト -->
+    <!-- 読み取り済みカウント表示 -->
     <div id="scanned-tags" style="display:none">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-        <strong style="font-size:13px">読み取り状況</strong>
-        <button class="btn btn-sm btn-outline" onclick="clearTags()">全クリア</button>
+      <div style="display:flex; justify-content:space-between; align-items:center">
+        <div style="display:flex; align-items:baseline; gap:8px">
+          <span style="font-size:13px; color:var(--text2)">読み取り済み</span>
+          <span id="tag-total" style="font-size:28px; font-weight:700; color:var(--primary)">0</span>
+          <span style="font-size:13px; color:var(--text2)">件</span>
+        </div>
+        <button class="btn btn-sm btn-outline" onclick="clearTags()">クリア</button>
       </div>
-      <div class="tag-list" id="tag-list"></div>
     </div>
 
     <!-- テスト用手動入力 -->
@@ -596,42 +598,7 @@ function updateTagDisplay() {
   document.getElementById('tag-count-num').textContent = count;
   document.getElementById('scan-count').style.display = count > 0 ? 'block' : 'none';
   document.getElementById('scanned-tags').style.display = count > 0 ? 'block' : 'none';
-
-  // 品目別集計を計算
-  var itemCounts = {};
-  var unknownCount = 0;
-  scannedTags.forEach(function(tag) {
-    var itemName = tagItemMap[tag];
-    if (itemName) {
-      itemCounts[itemName] = (itemCounts[itemName] || 0) + 1;
-    } else {
-      unknownCount++;
-    }
-  });
-
-  var html = '';
-  if (count > 0) {
-    html += '<div style="display:flex; flex-direction:column; gap:6px">';
-    Object.keys(itemCounts).forEach(function(name) {
-      html += '<div class="tag-item" style="justify-content:space-between">';
-      html += '<span style="font-weight:600">' + name + '</span>';
-      html += '<span class="count" style="font-size:18px; font-weight:700; color:var(--primary)">' + itemCounts[name] + '</span>';
-      html += '</div>';
-    });
-    if (unknownCount > 0) {
-      html += '<div class="tag-item" style="justify-content:space-between">';
-      html += '<span style="font-weight:600; color:var(--warning)">未登録タグ</span>';
-      html += '<span class="count" style="font-size:18px; font-weight:700; color:var(--warning)">' + unknownCount + '</span>';
-      html += '</div>';
-    }
-    html += '</div>';
-    html += '<div style="text-align:right; margin-top:8px; padding-top:8px; border-top:1px solid var(--border)">';
-    html += '<span style="font-size:12px; color:var(--text2)">合計</span> ';
-    html += '<span style="font-size:22px; font-weight:700">' + count + '</span>';
-    html += '<span style="font-size:12px; color:var(--text2)"> 件</span>';
-    html += '</div>';
-  }
-  document.getElementById('tag-list').innerHTML = html;
+  document.getElementById('tag-total').textContent = count;
 
   var btn = document.getElementById('exec-btn');
   btn.disabled = count === 0;
