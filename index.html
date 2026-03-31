@@ -318,17 +318,48 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // DataWedge入力ハンドラ
+  // DataWedge高速入力ハンドラ
+  // Keystroke出力は1文字ずつ送信されるため、Enter待ち＋パターン検知の二重方式で高速化
   var scanInput = document.getElementById('scan-input');
+  var _pendingTags = [];
+  var _displayTimer = null;
+  var DISPLAY_DEBOUNCE_MS = 200; // 表示更新は200ms間隔でバッチ処理
+  var _autoFlushTimer = null;
+  var AUTO_FLUSH_MS = 80; // 80ms入力停止でタグ確定（Enter不要時のフォールバック）
+
+  // タグを内部キューに追加（DOM更新はデバウンス）
+  function _queueTag(val) {
+    if (!val) return;
+    _pendingTags.push(val);
+    if (_displayTimer) clearTimeout(_displayTimer);
+    _displayTimer = setTimeout(function() {
+      _pendingTags.forEach(function(t) { addTagSilent(t); });
+      _pendingTags = [];
+      updateTagDisplay();
+    }, DISPLAY_DEBOUNCE_MS);
+  }
+
+  // Enter受信時: 即座にタグ確定
   scanInput.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' || e.keyCode === 13) {
       e.preventDefault();
+      if (_autoFlushTimer) clearTimeout(_autoFlushTimer);
       var val = scanInput.value.trim();
-      if (val) {
-        addTag(val);
-        scanInput.value = '';
-      }
+      scanInput.value = '';
+      if (val) _queueTag(val);
     }
+  });
+
+  // 文字入力監視: Enter無しでも自動検出（入力が止まったらタグ確定）
+  scanInput.addEventListener('input', function() {
+    if (_autoFlushTimer) clearTimeout(_autoFlushTimer);
+    _autoFlushTimer = setTimeout(function() {
+      var val = scanInput.value.trim();
+      if (val && val.length >= 16) { // 16文字以上でタグとして確定
+        scanInput.value = '';
+        _queueTag(val);
+      }
+    }, AUTO_FLUSH_MS);
   });
 
   // 実行者名をlocalStorageから復元
@@ -422,22 +453,22 @@ function stopScan() {
   document.getElementById('scan-label').textContent = 'タップしてスキャン開始';
 }
 
-function addTag(tagId) {
+// タグ追加（表示更新なし：バッチ処理用）
+function addTagSilent(tagId) {
   tagId = tagId.trim().toUpperCase();
   if (!tagId) return;
-
-  // 結合タグの自動分割
   var splitTags = splitConcatenatedTags(tagId);
-
   splitTags.forEach(function(tid) {
-    // 自社タグプレフィックスチェック
     if (TAG_PREFIX && !tid.startsWith(TAG_PREFIX)) return;
-    // 重複スキップ
     if (scannedTags.indexOf(tid) !== -1) return;
     scannedTags.push(tid);
-    if (navigator.vibrate) navigator.vibrate(50);
   });
+}
 
+// タグ追加（表示更新あり：テストボタン等の個別追加用）
+function addTag(tagId) {
+  addTagSilent(tagId);
+  if (navigator.vibrate) navigator.vibrate(50);
   updateTagDisplay();
 }
 
