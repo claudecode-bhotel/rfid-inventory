@@ -26,9 +26,13 @@ body { font-family: -apple-system, 'Segoe UI', 'Noto Sans JP', sans-serif; backg
 
 /* ヘッダー */
 .header { background: var(--primary); color: #fff; padding: 14px 16px; position: sticky; top: 0; z-index: 100; }
+.header-row { display: flex; justify-content: space-between; align-items: flex-start; }
+.header-left { flex: 1; }
 .header h1 { font-size: 17px; font-weight: 600; }
 .header .sub { font-size: 11px; opacity: .8; margin-top: 2px; }
 .header .status { font-size: 10px; margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+.lang-toggle { background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.5); border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; margin-left: 12px; transition: background .2s; }
+.lang-toggle:hover { background: rgba(255,255,255,.35); }
 .header .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dot.ok { background: #69F0AE; }
 .dot.ng { background: #FF5252; }
@@ -166,58 +170,63 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 
 <!-- ヘッダー -->
 <div class="header">
-  <h1>RFID タオル在庫管理システム</h1>
-  <div class="sub">Phase 2.1 — 独立フロントエンド + DataWedge対応</div>
+  <div class="header-row">
+    <div class="header-left">
+      <h1 data-i18n="app.title">RFID タオル在庫管理システム</h1>
+      <div class="sub" data-i18n="app.subtitle">Phase 2.1 — 独立フロントエンド + DataWedge対応</div>
+    </div>
+    <button class="lang-toggle" id="lang-toggle" onclick="toggleLanguage()">EN</button>
+  </div>
   <div class="status" id="api-status">
     <span class="dot loading" id="status-dot"></span>
-    <span id="status-text">API接続確認中...</span>
+    <span id="status-text" data-i18n="status.checking">API接続確認中...</span>
   </div>
 </div>
 
 <!-- タブ -->
 <div class="tab-nav">
-  <button class="tab-btn active" data-tab="scan">スキャン</button>
-  <button class="tab-btn" data-tab="inventory">在庫一覧</button>
-  <button class="tab-btn" data-tab="stocktake">棚卸し</button>
-  <button class="tab-btn" data-tab="history">履歴</button>
-  <button class="tab-btn" data-tab="settings">設定</button>
+  <button class="tab-btn active" data-tab="scan" data-i18n="tab.scan">スキャン</button>
+  <button class="tab-btn" data-tab="inventory" data-i18n="tab.inventory">在庫一覧</button>
+  <button class="tab-btn" data-tab="stocktake" data-i18n="tab.stocktake">棚卸し</button>
+  <button class="tab-btn" data-tab="history" data-i18n="tab.history">履歴</button>
+  <button class="tab-btn" data-tab="settings" data-i18n="tab.settings">設定</button>
 </div>
 
 <!-- ===== スキャンタブ ===== -->
 <div id="tab-scan" class="tab-content active">
   <div class="card">
-    <h2>操作種別を選択</h2>
+    <h2 data-i18n="scan.selectOp">操作種別を選択</h2>
     <div class="op-select">
-      <div class="op-btn selected" data-op="shipment" onclick="selectOp(this)">
-        <span class="icon">🚚</span><span class="label">出庫</span>
+      <div class="op-btn selected" data-op="shipment" onclick="selectOp(this, event)">
+        <span class="icon">🚚</span><span class="label" data-i18n="op.shipment">出庫</span>
       </div>
-      <div class="op-btn" data-op="return" onclick="selectOp(this)">
-        <span class="icon">🏠</span><span class="label">入庫</span>
+      <div class="op-btn" data-op="return" onclick="selectOp(this, event)">
+        <span class="icon">🏠</span><span class="label" data-i18n="op.return">入庫</span>
       </div>
     </div>
     <details class="op-btn-arrival-section">
-      <summary>⚠ 入荷（低頻度操作）</summary>
-      <div class="op-btn" data-op="arrival" onclick="selectOp(this)">
-        <span class="icon">📦</span><span class="label">入荷</span>
+      <summary data-i18n="op.arrivalSection">⚠ 入荷（低頻度操作）</summary>
+      <div class="op-btn" data-op="arrival" onclick="selectOp(this, event)">
+        <span class="icon">📦</span><span class="label" data-i18n="op.arrival">入荷</span>
       </div>
     </details>
     <div class="form-group" id="property-group" style="display:none">
-      <label>搬入先物件</label>
-      <select id="property-select"><option value="">-- 物件を選択 --</option></select>
+      <label data-i18n="scan.property">搬入先物件</label>
+      <select id="property-select"><option value="" data-i18n="scan.selectProperty">-- 物件を選択 --</option></select>
     </div>
     <div class="form-group">
-      <label>実行者</label>
-      <input type="text" id="operator-input" placeholder="名前を入力" value="">
+      <label data-i18n="scan.operator">実行者</label>
+      <input type="text" id="operator-input" data-i18n-placeholder="scan.operatorPlaceholder" placeholder="名前を入力" value="">
     </div>
   </div>
 
   <!-- RFIDスキャンエリア -->
   <div class="card">
-    <h2>📡 RFID読み取り</h2>
+    <h2 data-i18n="scan.rfidTitle">📡 RFID読み取り</h2>
     <div class="scan-area" id="scan-area" onclick="toggleScan()">
       <div class="scan-icon" id="scan-icon">📡</div>
-      <div class="scan-label" id="scan-label">タップしてスキャン開始</div>
-      <div class="scan-count" id="scan-count" style="display:none">読取: <span id="tag-count-num">0</span> 件</div>
+      <div class="scan-label" id="scan-label" data-i18n="scan.tapToStart">タップしてスキャン開始</div>
+      <div class="scan-count" id="scan-count" style="display:none"><span data-i18n="scan.readCount">読取:</span> <span id="tag-count-num">0</span> <span data-i18n="scan.items">件</span></div>
     </div>
     <!-- DataWedge用の非表示入力フィールド -->
     <input type="text" id="scan-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
@@ -225,18 +234,18 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
     <!-- 読み取り状況（品目別集計） -->
     <div id="scanned-tags" style="display:none">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-        <strong style="font-size:13px">読み取り状況</strong>
-        <button class="btn btn-sm btn-outline" onclick="clearTags()">全クリア</button>
+        <strong style="font-size:13px" data-i18n="scan.readStatus">読み取り状況</strong>
+        <button class="btn btn-sm btn-outline" onclick="clearTags()" data-i18n="scan.clearAll">全クリア</button>
       </div>
       <div id="tag-list"></div>
     </div>
 
     <!-- テスト用手動入力 -->
     <details class="test-section">
-      <summary>テスト用：手動入力 / タグ選択</summary>
+      <summary data-i18n="scan.testManual">テスト用：手動入力 / タグ選択</summary>
       <div style="margin-top: 10px;">
         <textarea id="manual-tags" placeholder="タグIDを1行1件で入力&#10;例: BT-0001&#10;    BT-0002"></textarea>
-        <button class="btn btn-sm btn-outline" onclick="addManualTags()" style="margin-top:6px">手動タグ追加</button>
+        <button class="btn btn-sm btn-outline" onclick="addManualTags()" style="margin-top:6px" data-i18n="scan.addManual">手動タグ追加</button>
         <div id="test-tag-grid" style="margin-top:10px"></div>
       </div>
     </details>
@@ -244,7 +253,7 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 
   <!-- 実行ボタン -->
   <button class="btn btn-primary" id="exec-btn" onclick="doExecuteScan()" disabled>
-    スキャン実行（0件）
+    <span id="exec-btn-text">スキャン実行（0件）</span>
   </button>
 
   <!-- 結果表示 -->
@@ -254,45 +263,45 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 <!-- ===== 在庫一覧タブ ===== -->
 <div id="tab-inventory" class="tab-content">
   <div class="summary-row">
-    <div class="summary-card sc-green"><div class="num" id="inv-clean">-</div><div class="lbl">クリーン在庫</div></div>
-    <div class="summary-card sc-blue"><div class="num" id="inv-all">-</div><div class="lbl">全在庫</div></div>
-    <div class="summary-card sc-orange"><div class="num" id="inv-shipped">-</div><div class="lbl">出庫中</div></div>
+    <div class="summary-card sc-green"><div class="num" id="inv-clean">-</div><div class="lbl" data-i18n="inv.clean">クリーン在庫</div></div>
+    <div class="summary-card sc-blue"><div class="num" id="inv-all">-</div><div class="lbl" data-i18n="inv.all">全在庫</div></div>
+    <div class="summary-card sc-orange"><div class="num" id="inv-shipped">-</div><div class="lbl" data-i18n="inv.shipped">出庫中</div></div>
   </div>
   <div class="card">
-    <h2>品目別在庫</h2>
+    <h2 data-i18n="inv.byItem">品目別在庫</h2>
     <div id="inv-table-wrap"><div class="loading"><div class="spinner"></div></div></div>
   </div>
-  <button class="btn btn-outline" onclick="loadInventory()">更新</button>
+  <button class="btn btn-outline" onclick="loadInventory()" data-i18n="common.refresh">更新</button>
 </div>
 
 <!-- ===== 棚卸しタブ ===== -->
 <div id="tab-stocktake" class="tab-content">
   <div class="card">
-    <h2>📋 棚卸し</h2>
-    <p style="font-size:13px; color:var(--text2); margin-bottom:12px">
+    <h2 data-i18n="stocktake.title">📋 棚卸し</h2>
+    <p style="font-size:13px; color:var(--text2); margin-bottom:12px" data-i18n="stocktake.desc">
       倉庫内のすべてのタオルをスキャンして、在庫の正確性を確認します。
     </p>
-    <button class="btn btn-primary" id="stocktake-start-btn" onclick="startStocktake()">棚卸し開始</button>
-    <button class="btn btn-success" id="stocktake-finish-btn" onclick="finishStocktake()" style="display:none">棚卸し完了</button>
-    <button class="btn btn-outline" id="stocktake-cancel-btn" onclick="cancelStocktake()" style="display:none">キャンセル</button>
+    <button class="btn btn-primary" id="stocktake-start-btn" onclick="startStocktake()" data-i18n="stocktake.start">棚卸し開始</button>
+    <button class="btn btn-success" id="stocktake-finish-btn" onclick="finishStocktake()" style="display:none" data-i18n="stocktake.finish">棚卸し完了</button>
+    <button class="btn btn-outline" id="stocktake-cancel-btn" onclick="cancelStocktake()" style="display:none" data-i18n="stocktake.cancel">キャンセル</button>
   </div>
 
   <!-- 棚卸し中のスキャン表示 -->
   <div id="stocktake-scan-area" style="display:none">
     <div class="card">
-      <h2>📡 RFID読み取り</h2>
+      <h2 data-i18n="scan.rfidTitle">📡 RFID読み取り</h2>
       <div class="scan-area" id="stocktake-scan-area-inner" style="border-color:var(--primary); background:var(--primary-light)">
         <div class="scan-icon">📡</div>
-        <div class="scan-label" id="stocktake-scan-label">スキャン中... RFIDトリガーを引いてください</div>
-        <div class="scan-count" id="stocktake-scan-count" style="display:block">読取: <span id="stocktake-tag-count-num">0</span> 件</div>
+        <div class="scan-label" id="stocktake-scan-label" data-i18n="scan.scanning">スキャン中... RFIDトリガーを引いてください</div>
+        <div class="scan-count" id="stocktake-scan-count" style="display:block"><span data-i18n="scan.readCount">読取:</span> <span id="stocktake-tag-count-num">0</span> <span data-i18n="scan.items">件</span></div>
       </div>
       <!-- スキャン用の非表示入力フィールド（スキャンタブと共用） -->
 
       <!-- スキャン状況表示 -->
       <div id="stocktake-scanned-tags" style="margin-top:12px">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-          <strong style="font-size:13px">読み取り状況</strong>
-          <button class="btn btn-sm btn-outline" onclick="clearStocktakeTags()">全クリア</button>
+          <strong style="font-size:13px" data-i18n="scan.readStatus">読み取り状況</strong>
+          <button class="btn btn-sm btn-outline" onclick="clearStocktakeTags()" data-i18n="scan.clearAll">全クリア</button>
         </div>
         <div id="stocktake-tag-list"></div>
       </div>
@@ -306,40 +315,40 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 <!-- ===== 履歴タブ ===== -->
 <div id="tab-history" class="tab-content">
   <div class="card">
-    <h2>スキャン履歴</h2>
+    <h2 data-i18n="history.title">スキャン履歴</h2>
     <div id="hist-list"><div class="loading"><div class="spinner"></div></div></div>
   </div>
-  <button class="btn btn-outline" onclick="loadHistory()">更新</button>
+  <button class="btn btn-outline" onclick="loadHistory()" data-i18n="common.refresh">更新</button>
 </div>
 
 <!-- ===== 設定タブ ===== -->
 <div id="tab-settings" class="tab-content">
   <div class="card">
-    <h2>API設定</h2>
+    <h2 data-i18n="settings.apiTitle">API設定</h2>
     <div class="form-group">
-      <label>GAS Web App URL</label>
+      <label data-i18n="settings.apiUrl">GAS Web App URL</label>
       <input type="url" id="api-url" placeholder="https://script.google.com/macros/s/.../exec">
     </div>
-    <button class="btn btn-sm btn-primary" onclick="saveApiUrl()">保存して接続テスト</button>
+    <button class="btn btn-sm btn-primary" onclick="saveApiUrl()" data-i18n="settings.saveTest">保存して接続テスト</button>
   </div>
   <div class="card">
-    <h2>DataWedge設定ガイド</h2>
-    <p style="font-size:13px; color:var(--text2); line-height:1.6">
+    <h2 data-i18n="settings.dwGuideTitle">DataWedge設定ガイド</h2>
+    <p style="font-size:13px; color:var(--text2); line-height:1.6" data-i18n="settings.dwGuideDesc">
       Zebraデバイスで以下のDataWedgeプロファイルを設定してください:
     </p>
-    <ol style="font-size:13px; color:var(--text2); line-height:1.8; padding-left:20px; margin-top:8px">
-      <li>DataWedgeアプリを開く</li>
-      <li>新しいプロファイルを作成（名前: RFID在庫管理）</li>
-      <li>関連付けアプリ → ブラウザ（Chrome / Enterprise Browser）を選択</li>
-      <li>Input → RFID Input → 有効化</li>
-      <li>Output → Keystroke Output → 有効化</li>
-      <li>キーストローク間遅延 → 50ms</li>
-      <li>データ末尾アクション → Enter（改行）</li>
+    <ol id="dw-guide-list" style="font-size:13px; color:var(--text2); line-height:1.8; padding-left:20px; margin-top:8px">
+      <li data-i18n="settings.dwStep1">DataWedgeアプリを開く</li>
+      <li data-i18n="settings.dwStep2">新しいプロファイルを作成（名前: RFID在庫管理）</li>
+      <li data-i18n="settings.dwStep3">関連付けアプリ → ブラウザ（Chrome / Enterprise Browser）を選択</li>
+      <li data-i18n="settings.dwStep4">Input → RFID Input → 有効化</li>
+      <li data-i18n="settings.dwStep5">Output → Keystroke Output → 有効化</li>
+      <li data-i18n="settings.dwStep6">キーストローク間遅延 → 50ms</li>
+      <li data-i18n="settings.dwStep7">データ末尾アクション → Enter（改行）</li>
     </ol>
   </div>
   <div class="card">
-    <h2>システム管理</h2>
-    <button class="btn btn-sm btn-danger" onclick="initSystem()">システム初期化（テストデータ投入）</button>
+    <h2 data-i18n="settings.systemTitle">システム管理</h2>
+    <button class="btn btn-sm btn-danger" onclick="initSystem()" data-i18n="settings.initSystem">システム初期化（テストデータ投入）</button>
   </div>
 </div>
 
@@ -381,6 +390,226 @@ var KNOWN_PREFIXES = {
 var TAG_LENGTH = 24;
 var TAG_HEX_REGEX = /^[0-9A-F]+$/;
 
+// ==================== 多言語対応 (i18n) ====================
+var currentLang = localStorage.getItem('rfid_lang') || 'ja';
+var LANG = {
+  ja: {
+    'app.title': 'RFID タオル在庫管理システム',
+    'app.subtitle': 'Phase 2.1 — 独立フロントエンド + DataWedge対応',
+    'status.checking': 'API接続確認中...',
+    'status.connected': 'API接続OK',
+    'status.disconnected': '未設定 — 設定タブでAPI URLを入力してください',
+    'tab.scan': 'スキャン',
+    'tab.inventory': '在庫一覧',
+    'tab.stocktake': '棚卸し',
+    'tab.history': '履歴',
+    'tab.settings': '設定',
+    'scan.selectOp': '操作種別を選択',
+    'op.shipment': '出庫',
+    'op.return': '入庫',
+    'op.arrival': '入荷',
+    'op.arrivalSection': '⚠ 入荷（低頻度操作）',
+    'scan.property': '搬入先物件',
+    'scan.selectProperty': '-- 物件を選択 --',
+    'scan.operator': '実行者',
+    'scan.operatorPlaceholder': '名前を入力',
+    'scan.rfidTitle': '📡 RFID読み取り',
+    'scan.tapToStart': 'タップしてスキャン開始',
+    'scan.scanning': 'スキャン中... RFIDトリガーを引いてください',
+    'scan.readCount': '読取:',
+    'scan.items': '件',
+    'scan.readStatus': '読み取り状況',
+    'scan.clearAll': '全クリア',
+    'scan.testManual': 'テスト用：手動入力 / タグ選択',
+    'scan.addManual': '手動タグ追加',
+    'scan.exec': 'スキャン実行',
+    'scan.processing': '処理中...',
+    'scan.arrivalWarning': '⚠ 入荷操作が選択されました',
+    'scan.noTags': 'タグがありません',
+    'scan.selectPropertyErr': '搬入先物件を選択してください',
+    'scan.unknownTitle': '⚠️ 不明タグ（在庫対象外）',
+    'scan.total': '合計',
+    'scan.unknownSuffix': '件',
+    'scan.unknownPrefix': '+ 不明',
+    'scan.testTagLabel': 'テストタグ（タップで追加）:',
+    'scan.added': '件追加',
+    'inv.clean': 'クリーン在庫',
+    'inv.all': '全在庫',
+    'inv.shipped': '出庫中',
+    'inv.byItem': '品目別在庫',
+    'inv.thItem': '品目',
+    'inv.thClean': 'クリーン',
+    'inv.thAll': '全在庫',
+    'inv.thShipped': '出庫中',
+    'inv.totalRow': '合計',
+    'common.refresh': '更新',
+    'common.error': 'エラー',
+    'common.commError': '通信エラー',
+    'stocktake.title': '📋 棚卸し',
+    'stocktake.desc': '倉庫内のすべてのタオルをスキャンして、在庫の正確性を確認します。',
+    'stocktake.start': '棚卸し開始',
+    'stocktake.finish': '棚卸し完了',
+    'stocktake.cancel': 'キャンセル',
+    'stocktake.started': '棚卸しモード開始',
+    'stocktake.cancelled': '棚卸しキャンセル',
+    'stocktake.noTags': 'タグがスキャンされていません',
+    'stocktake.fetchError': '在庫データの取得に失敗',
+    'stocktake.matched': '✓ 在庫一致',
+    'stocktake.matchedDesc': 'スキャン済みで在庫にあるタオル',
+    'stocktake.missing': '⚠️ スキャン漏れ',
+    'stocktake.missingDesc': '在庫にあるのにスキャンされなかったタオル',
+    'stocktake.extra': '❌ 未登録',
+    'stocktake.extraDesc': 'スキャンしたが在庫に無いタオル',
+    'history.title': 'スキャン履歴',
+    'history.none': '履歴なし',
+    'settings.apiTitle': 'API設定',
+    'settings.apiUrl': 'GAS Web App URL',
+    'settings.saveTest': '保存して接続テスト',
+    'settings.saved': '保存しました',
+    'settings.dwGuideTitle': 'DataWedge設定ガイド',
+    'settings.dwGuideDesc': 'Zebraデバイスで以下のDataWedgeプロファイルを設定してください:',
+    'settings.dwStep1': 'DataWedgeアプリを開く',
+    'settings.dwStep2': '新しいプロファイルを作成（名前: RFID在庫管理）',
+    'settings.dwStep3': '関連付けアプリ → ブラウザ（Chrome / Enterprise Browser）を選択',
+    'settings.dwStep4': 'Input → RFID Input → 有効化',
+    'settings.dwStep5': 'Output → Keystroke Output → 有効化',
+    'settings.dwStep6': 'キーストローク間遅延 → 50ms',
+    'settings.dwStep7': 'データ末尾アクション → Enter（改行）',
+    'settings.systemTitle': 'システム管理',
+    'settings.initSystem': 'システム初期化（テストデータ投入）',
+    'settings.initConfirm': '全データをリセットしてテストデータを投入します。よろしいですか？',
+    'settings.initProgress': '初期化中...',
+    'settings.initDone': '初期化完了',
+    'settings.apiSetErr': 'API URLを設定してください',
+    'opName.arrival': '入荷',
+    'opName.shipment': '出庫',
+    'opName.return': '入庫',
+    'result.complete': '完了'
+  },
+  en: {
+    'app.title': 'RFID Towel Inventory System',
+    'app.subtitle': 'Phase 2.1 — Standalone Frontend + DataWedge',
+    'status.checking': 'Checking API...',
+    'status.connected': 'API Connected',
+    'status.disconnected': 'Not set — Enter API URL in Settings tab',
+    'tab.scan': 'Scan',
+    'tab.inventory': 'Inventory',
+    'tab.stocktake': 'Stocktake',
+    'tab.history': 'History',
+    'tab.settings': 'Settings',
+    'scan.selectOp': 'Select Operation',
+    'op.shipment': 'Ship Out',
+    'op.return': 'Receive',
+    'op.arrival': 'New Arrival',
+    'op.arrivalSection': '⚠ New Arrival (Infrequent)',
+    'scan.property': 'Destination Property',
+    'scan.selectProperty': '-- Select Property --',
+    'scan.operator': 'Operator',
+    'scan.operatorPlaceholder': 'Enter name',
+    'scan.rfidTitle': '📡 RFID Scanner',
+    'scan.tapToStart': 'Tap to Start Scanning',
+    'scan.scanning': 'Scanning... Pull the RFID trigger',
+    'scan.readCount': 'Read:',
+    'scan.items': 'items',
+    'scan.readStatus': 'Scan Status',
+    'scan.clearAll': 'Clear All',
+    'scan.testManual': 'Test: Manual Input / Tag Selection',
+    'scan.addManual': 'Add Manual Tags',
+    'scan.exec': 'Execute Scan',
+    'scan.processing': 'Processing...',
+    'scan.arrivalWarning': '⚠ New Arrival operation selected',
+    'scan.noTags': 'No tags scanned',
+    'scan.selectPropertyErr': 'Please select a destination property',
+    'scan.unknownTitle': '⚠️ Unknown Tags (Not Tracked)',
+    'scan.total': 'Total',
+    'scan.unknownSuffix': '',
+    'scan.unknownPrefix': '+ Unknown ',
+    'scan.testTagLabel': 'Test tags (tap to add):',
+    'scan.added': ' tags added',
+    'inv.clean': 'Clean Stock',
+    'inv.all': 'Total Stock',
+    'inv.shipped': 'Shipped Out',
+    'inv.byItem': 'Inventory by Item',
+    'inv.thItem': 'Item',
+    'inv.thClean': 'Clean',
+    'inv.thAll': 'Total',
+    'inv.thShipped': 'Shipped',
+    'inv.totalRow': 'Total',
+    'common.refresh': 'Refresh',
+    'common.error': 'Error',
+    'common.commError': 'Connection Error',
+    'stocktake.title': '📋 Stocktake',
+    'stocktake.desc': 'Scan all towels in the warehouse to verify inventory accuracy.',
+    'stocktake.start': 'Start Stocktake',
+    'stocktake.finish': 'Finish Stocktake',
+    'stocktake.cancel': 'Cancel',
+    'stocktake.started': 'Stocktake mode started',
+    'stocktake.cancelled': 'Stocktake cancelled',
+    'stocktake.noTags': 'No tags scanned yet',
+    'stocktake.fetchError': 'Failed to retrieve inventory data',
+    'stocktake.matched': '✓ Matched',
+    'stocktake.matchedDesc': 'Scanned towels found in inventory',
+    'stocktake.missing': '⚠️ Missing',
+    'stocktake.missingDesc': 'In inventory but not scanned',
+    'stocktake.extra': '❌ Unregistered',
+    'stocktake.extraDesc': 'Scanned but not in inventory',
+    'history.title': 'Scan History',
+    'history.none': 'No history',
+    'settings.apiTitle': 'API Settings',
+    'settings.apiUrl': 'GAS Web App URL',
+    'settings.saveTest': 'Save & Test Connection',
+    'settings.saved': 'Saved',
+    'settings.dwGuideTitle': 'DataWedge Setup Guide',
+    'settings.dwGuideDesc': 'Set up the following DataWedge profile on your Zebra device:',
+    'settings.dwStep1': 'Open the DataWedge app',
+    'settings.dwStep2': 'Create a new profile (Name: RFID Inventory)',
+    'settings.dwStep3': 'Associated app → Select Browser (Chrome / Enterprise Browser)',
+    'settings.dwStep4': 'Input → RFID Input → Enable',
+    'settings.dwStep5': 'Output → Keystroke Output → Enable',
+    'settings.dwStep6': 'Keystroke delay → 50ms',
+    'settings.dwStep7': 'End of data action → Enter (newline)',
+    'settings.systemTitle': 'System Management',
+    'settings.initSystem': 'Initialize System (Load Test Data)',
+    'settings.initConfirm': 'This will reset all data and load test data. Are you sure?',
+    'settings.initProgress': 'Initializing...',
+    'settings.initDone': 'Initialization complete',
+    'settings.apiSetErr': 'Please set API URL',
+    'opName.arrival': 'New Arrival',
+    'opName.shipment': 'Shipment',
+    'opName.return': 'Return',
+    'result.complete': 'Complete'
+  }
+};
+
+function t(key) {
+  return (LANG[currentLang] && LANG[currentLang][key]) || LANG['ja'][key] || key;
+}
+
+function applyLanguage() {
+  // 静的テキスト要素を更新
+  document.querySelectorAll('[data-i18n]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+  // プレースホルダー
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n-placeholder');
+    el.placeholder = t(key);
+  });
+  // ボタンテキスト更新
+  document.getElementById('lang-toggle').textContent = currentLang === 'ja' ? 'EN' : 'JP';
+  // opNameMap更新
+  opNameMap = { arrival: t('opName.arrival'), shipment: t('opName.shipment'), return: t('opName.return') };
+  // 動的表示更新
+  updateTagDisplay();
+}
+
+function toggleLanguage() {
+  currentLang = currentLang === 'ja' ? 'en' : 'ja';
+  localStorage.setItem('rfid_lang', currentLang);
+  applyLanguage();
+}
+
 // ==================== 初期化 ====================
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('api-url').value = API_URL;
@@ -389,7 +618,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadProperties();
     loadTestTags();
   } else {
-    showApiStatus('ng', '未設定 — 設定タブでAPI URLを入力してください');
+    showApiStatus('ng', t('status.disconnected'));
   }
 
   // タブ切り替え
@@ -404,7 +633,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // DataWedge高速入力ハンドラ（常に受け付ける）
+  // DataWedge高速入力ハンドラ
   var scanInput = document.getElementById('scan-input');
   var _pendingTags = [];
   var _displayTimer = null;
@@ -412,20 +641,10 @@ document.addEventListener('DOMContentLoaded', function() {
   var _autoFlushTimer = null;
   var AUTO_FLUSH_MS = 80;
 
-  // 初期フォーカス
-  scanInput.focus();
-
-  // ドキュメントレベルのキー入力リスナー: いかなる入力でもスキャン入力に誘導
-  document.addEventListener('keydown', function(e) {
-    if (document.activeElement !== scanInput && e.key !== 'Tab') {
-      scanInput.focus();
-    }
-  });
-
-  // フォーカス保持（常に）
+  // フォーカス保持（スキャン中/棚卸し中のみ）
   window._scanFocusInterval = setInterval(function() {
-    if (document.activeElement !== scanInput && !isFormElement(document.activeElement)) {
-      scanInput.focus();
+    if ((isScanning || currentMode === 'stocktake') && document.activeElement !== scanInput && !isFormElement(document.activeElement)) {
+      scanInput.focus({ preventScroll: true });
     }
   }, 500);
 
@@ -435,6 +654,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return tagName === 'input' || tagName === 'textarea' || tagName === 'select';
   }
 
+  window._queueTag = _queueTag;
   function _queueTag(val) {
     if (!val) return;
     _pendingTags.push(val);
@@ -443,11 +663,9 @@ document.addEventListener('DOMContentLoaded', function() {
       _pendingTags.forEach(function(t) { addTagSilent(t); });
       _pendingTags = [];
       updateTagDisplay();
-      // 最初のタグ受信でスキャンモード自動開始
-      if (currentMode === 'scan' && scannedTags.length > 0 && !isScanning) {
-        startScan();
-      } else if (currentMode === 'stocktake' && stockTags.length > 0) {
-        // 棚卸しモードでも自動で表示更新
+      // 棚卸しモードでの表示更新
+      if (currentMode === 'stocktake' && stockTags.length > 0) {
+        updateStocktakeTagDisplay();
       }
     }, DISPLAY_DEBOUNCE_MS);
   }
@@ -478,6 +696,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // 実行者名をlocalStorageから復元
   var savedOp = localStorage.getItem('rfid_operator');
   if (savedOp) document.getElementById('operator-input').value = savedOp;
+
+  // 言語設定を適用
+  applyLanguage();
 });
 
 // ==================== API通信 ====================
@@ -498,14 +719,14 @@ function apiPost(body) {
 }
 
 function checkApiConnection() {
-  showApiStatus('loading', 'API接続確認中...');
+  showApiStatus('loading', t('status.checking'));
   apiGet('ping')
     .then(function(r) {
-      if (r.success) showApiStatus('ok', 'API接続OK');
-      else showApiStatus('ng', 'APIエラー: ' + r.error);
+      if (r.success) showApiStatus('ok', t('status.connected'));
+      else showApiStatus('ng', t('common.error') + ': ' + r.error);
     })
     .catch(function(e) {
-      showApiStatus('ng', '接続失敗: ' + e.message);
+      showApiStatus('ng', t('common.commError') + ': ' + e.message);
     });
 }
 
@@ -517,17 +738,19 @@ function showApiStatus(state, text) {
 // ==================== 設定保存 ====================
 function saveApiUrl() {
   var url = document.getElementById('api-url').value.trim();
-  if (!url) { toast('URLを入力してください', 'err'); return; }
+  if (!url) { toast('URL required', 'err'); return; }
   API_URL = url;
   localStorage.setItem('rfid_api_url', url);
   checkApiConnection();
   loadProperties();
   loadTestTags();
-  toast('保存しました', 'ok');
+  toast(t('settings.saved'), 'ok');
 }
 
 // ==================== 操作種別 ====================
-function selectOp(el) {
+function selectOp(el, event) {
+  if (event) event.preventDefault();
+  var scrollY = window.scrollY;
   document.querySelectorAll('.op-btn').forEach(function(b) { b.classList.remove('selected'); });
   el.classList.add('selected');
   currentOp = el.dataset.op;
@@ -535,8 +758,10 @@ function selectOp(el) {
 
   // 入荷が選ばれた際の通知
   if (currentOp === 'arrival') {
-    toast('⚠ 入荷操作が選択されました', 'ok');
+    toast(t('scan.arrivalWarning'), 'ok');
   }
+  // スクロール位置を復元（フォーカス移動による自動スクロール防止）
+  window.scrollTo(0, scrollY);
 }
 
 // ==================== RFIDスキャン（スキャンタブ用） ====================
@@ -550,11 +775,20 @@ function startScan() {
   var area = document.getElementById('scan-area');
   area.classList.add('scanning');
   document.getElementById('scan-icon').textContent = '🔄';
-  document.getElementById('scan-label').textContent = 'スキャン中... RFIDトリガーを引いてください';
+  document.getElementById('scan-label').textContent = t('scan.scanning');
   document.getElementById('scan-count').style.display = 'block';
 
   var input = document.getElementById('scan-input');
-  input.focus();
+  input.focus({ preventScroll: true });
+
+  // トリガー先押し対応: フォーカス取得時に既にバッファされた入力があれば即処理
+  setTimeout(function() {
+    var buffered = input.value.trim();
+    if (buffered) {
+      input.value = '';
+      if (window._queueTag) window._queueTag(buffered);
+    }
+  }, 50);
 }
 
 function stopScan() {
@@ -562,7 +796,7 @@ function stopScan() {
   var area = document.getElementById('scan-area');
   area.classList.remove('scanning');
   document.getElementById('scan-icon').textContent = '📡';
-  document.getElementById('scan-label').textContent = 'タップしてスキャン開始';
+  document.getElementById('scan-label').textContent = t('scan.tapToStart');
 }
 
 // ==================== タグ追加 ====================
@@ -692,7 +926,7 @@ function updateTagDisplay() {
 
     if (unknownCount > 0) {
       html += '<div class="unknown-tags-section">';
-      html += '<h3>⚠️ 不明タグ（在庫対象外）</h3>';
+      html += '<h3>' + t('scan.unknownTitle') + '</h3>';
       html += '<div class="unknown-tags-list">';
       unknownTags.forEach(function(tag) {
         html += '<div class="unknown-tag-item">' + tag + '</div>';
@@ -701,19 +935,22 @@ function updateTagDisplay() {
     }
 
     html += '<div style="text-align:right; margin-top:8px; padding-top:8px; border-top:1px solid var(--border)">';
-    html += '<span style="font-size:12px; color:var(--text2)">合計</span> ';
+    html += '<span style="font-size:12px; color:var(--text2)">' + t('scan.total') + '</span> ';
     html += '<span style="font-size:22px; font-weight:700">' + knownCount + '</span>';
     if (unknownCount > 0) {
-      html += ' <span style="font-size:12px; color:var(--warning)">+ 不明' + unknownCount + '件</span>';
+      html += ' <span style="font-size:12px; color:var(--warning)">' + t('scan.unknownPrefix') + unknownCount + t('scan.unknownSuffix') + '</span>';
     }
-    html += '<span style="font-size:12px; color:var(--text2)"> 件</span>';
+    html += '<span style="font-size:12px; color:var(--text2)"> ' + t('scan.items') + '</span>';
     html += '</div>';
   }
   document.getElementById('tag-list').innerHTML = html;
 
   var btn = document.getElementById('exec-btn');
   btn.disabled = knownCount === 0;
-  btn.textContent = 'スキャン実行（' + knownCount + '件' + (unknownCount > 0 ? ' + 不明' + unknownCount + '件' : '') + '）';
+  var btnText = t('scan.exec') + '(' + knownCount + t('scan.items');
+  if (unknownCount > 0) btnText += ' ' + t('scan.unknownPrefix') + unknownCount + t('scan.unknownSuffix');
+  btnText += ')';
+  btn.textContent = btnText;
 }
 
 // ==================== タグ表示更新（棚卸し） ====================
@@ -745,7 +982,7 @@ function updateStocktakeTagDisplay() {
 
     if (unknownCount > 0) {
       html += '<div class="unknown-tags-section">';
-      html += '<h3>⚠️ 不明タグ（在庫対象外）</h3>';
+      html += '<h3>' + t('scan.unknownTitle') + '</h3>';
       html += '<div class="unknown-tags-list">';
       stockUnknownTags.forEach(function(tag) {
         html += '<div class="unknown-tag-item">' + tag + '</div>';
@@ -773,7 +1010,7 @@ function addManualTags() {
   });
   document.getElementById('manual-tags').value = '';
   updateTagDisplay();
-  if (added) toast(added + '件追加', 'ok');
+  if (added) toast(added + t('scan.added'), 'ok');
 }
 
 function loadTestTags() {
@@ -783,7 +1020,7 @@ function loadTestTags() {
     r.tags.forEach(function(t) {
       tagItemMap[t.id] = t.itemName || t.itemCode || '不明';
     });
-    var html = '<div style="font-size:12px; color:var(--text2); margin-bottom:6px">テストタグ（タップで追加）:</div>';
+    var html = '<div style="font-size:12px; color:var(--text2); margin-bottom:6px">' + t('scan.testTagLabel') + '</div>';
     html += '<div style="display:flex; flex-wrap:wrap; gap:4px">';
     r.tags.forEach(function(t) {
       html += '<button class="btn btn-sm btn-outline" style="font-size:11px;padding:4px 8px" onclick="addTag(\'' + t.id + '\')">' + (t.itemName || t.id) + '</button>';
@@ -795,13 +1032,13 @@ function loadTestTags() {
 
 // ==================== スキャン実行 ====================
 function doExecuteScan() {
-  if (scannedTags.length === 0) { toast('タグがありません', 'err'); return; }
+  if (scannedTags.length === 0) { toast(t('scan.noTags'), 'err'); return; }
 
   var opType = opNameMap[currentOp];
   var propertyId = '';
   if (currentOp === 'shipment') {
     propertyId = document.getElementById('property-select').value;
-    if (!propertyId) { toast('搬入先物件を選択してください', 'err'); return; }
+    if (!propertyId) { toast(t('scan.selectPropertyErr'), 'err'); return; }
   }
 
   var operator = document.getElementById('operator-input').value.trim() || '共通アカウント';
@@ -809,7 +1046,7 @@ function doExecuteScan() {
 
   var btn = document.getElementById('exec-btn');
   btn.disabled = true;
-  btn.textContent = '処理中...';
+  btn.textContent = t('scan.processing');
   stopScan();
 
   apiPost({
@@ -822,28 +1059,28 @@ function doExecuteScan() {
   .then(function(r) {
     if (r.success) {
       showScanResult(r);
-      toast(opType + '完了: ' + r.totalScanned + '件', 'ok');
+      toast(opType + ' ' + t('result.complete') + ': ' + r.totalScanned + t('scan.items'), 'ok');
       scannedTags = [];
       scannedTagSet = {};
       unknownTags = [];
       unknownTagSet = {};
       updateTagDisplay();
     } else {
-      toast('エラー: ' + r.error, 'err');
+      toast(t('common.error') + ': ' + r.error, 'err');
       btn.disabled = false;
-      btn.textContent = 'スキャン実行（' + scannedTags.length + '件）';
+      btn.textContent = t('scan.exec') + '(' + scannedTags.length + t('scan.items') + ')';
     }
   })
   .catch(function(e) {
-    toast('通信エラー: ' + e.message, 'err');
+    toast(t('common.commError') + ': ' + e.message, 'err');
     btn.disabled = false;
-    btn.textContent = 'スキャン実行（' + scannedTags.length + '件）';
+    btn.textContent = t('scan.exec') + '(' + scannedTags.length + t('scan.items') + ')';
   });
 }
 
 function showScanResult(r) {
   var html = '<div class="result-box success">';
-  html += '<div style="font-weight:700; margin-bottom:8px">' + r.operationType + ' 完了</div>';
+  html += '<div style="font-weight:700; margin-bottom:8px">' + r.operationType + ' ' + t('result.complete') + '</div>';
   var counts = r.itemCounts || {};
   var total = 0;
   Object.keys(counts).forEach(function(name) {
@@ -872,8 +1109,8 @@ function startStocktake() {
   document.getElementById('stocktake-scan-area').style.display = 'block';
   document.getElementById('stocktake-result').style.display = 'none';
 
-  document.getElementById('scan-input').focus();
-  toast('棚卸しモード開始', 'ok');
+  document.getElementById('scan-input').focus({ preventScroll: true });
+  toast(t('stocktake.started'), 'ok');
 }
 
 function cancelStocktake() {
@@ -889,26 +1126,26 @@ function cancelStocktake() {
   document.getElementById('stocktake-scan-area').style.display = 'none';
   document.getElementById('stocktake-result').style.display = 'none';
 
-  toast('棚卸しキャンセル', 'ok');
+  toast(t('stocktake.cancelled'), 'ok');
 }
 
 function finishStocktake() {
   if (stockTags.length === 0) {
-    toast('タグがスキャンされていません', 'err');
+    toast(t('stocktake.noTags'), 'err');
     return;
   }
 
   var btn = document.getElementById('stocktake-finish-btn');
   btn.disabled = true;
-  btn.textContent = '処理中...';
+  btn.textContent = t('scan.processing');
 
   // インベントリAPIからすべてのタグを取得
   apiGet('inventory')
     .then(function(r) {
       if (!r.success) {
-        toast('在庫データの取得に失敗', 'err');
+        toast(t('stocktake.fetchError'), 'err');
         btn.disabled = false;
-        btn.textContent = '棚卸し完了';
+        btn.textContent = t('stocktake.finish');
         return;
       }
 
@@ -943,12 +1180,12 @@ function finishStocktake() {
 
       showStocktakeResult(matchedTags, missingTags, extraTags);
       btn.disabled = false;
-      btn.textContent = '棚卸し完了';
+      btn.textContent = t('stocktake.finish');
     })
     .catch(function(e) {
-      toast('通信エラー: ' + e.message, 'err');
+      toast(t('common.commError') + ': ' + e.message, 'err');
       btn.disabled = false;
-      btn.textContent = '棚卸し完了';
+      btn.textContent = t('stocktake.finish');
     });
 }
 
@@ -956,16 +1193,16 @@ function showStocktakeResult(matched, missing, extra) {
   var html = '<div class="stocktake-results">';
 
   html += '<div class="stocktake-result-section stocktake-result-matched">';
-  html += '<h3>✓ 在庫一致 <span class="stocktake-result-count">' + matched.length + '</span> 件</h3>';
+  html += '<h3>' + t('stocktake.matched') + ' <span class="stocktake-result-count">' + matched.length + '</span> ' + t('scan.items') + '</h3>';
   if (matched.length > 0) {
-    html += '<div style="font-size:12px; color:var(--success); margin-top:6px">スキャン済みで在庫にあるタオル</div>';
+    html += '<div style="font-size:12px; color:var(--success); margin-top:6px">' + t('stocktake.matchedDesc') + '</div>';
   }
   html += '</div>';
 
   html += '<div class="stocktake-result-section stocktake-result-missing">';
-  html += '<h3>⚠️ スキャン漏れ <span class="stocktake-result-count">' + missing.length + '</span> 件</h3>';
+  html += '<h3>' + t('stocktake.missing') + ' <span class="stocktake-result-count">' + missing.length + '</span> ' + t('scan.items') + '</h3>';
   if (missing.length > 0) {
-    html += '<div style="font-size:12px; color:var(--warning); margin-top:6px">在庫にあるのにスキャンされなかったタオル</div>';
+    html += '<div style="font-size:12px; color:var(--warning); margin-top:6px">' + t('stocktake.missingDesc') + '</div>';
     html += '<div style="margin-top:8px; max-height:150px; overflow-y:auto">';
     missing.forEach(function(tag) {
       html += '<div style="font-size:12px; padding:4px 0; border-bottom:1px solid rgba(0,0,0,.1); font-family:monospace">' + tag + '</div>';
@@ -975,9 +1212,9 @@ function showStocktakeResult(matched, missing, extra) {
   html += '</div>';
 
   html += '<div class="stocktake-result-section stocktake-result-extra">';
-  html += '<h3>❌ 未登録 <span class="stocktake-result-count">' + extra.length + '</span> 件</h3>';
+  html += '<h3>' + t('stocktake.extra') + ' <span class="stocktake-result-count">' + extra.length + '</span> ' + t('scan.items') + '</h3>';
   if (extra.length > 0) {
-    html += '<div style="font-size:12px; color:var(--danger); margin-top:6px">スキャンしたが在庫に無いタオル</div>';
+    html += '<div style="font-size:12px; color:var(--danger); margin-top:6px">' + t('stocktake.extraDesc') + '</div>';
     html += '<div style="margin-top:8px; max-height:150px; overflow-y:auto">';
     extra.forEach(function(tag) {
       html += '<div style="font-size:12px; padding:4px 0; border-bottom:1px solid rgba(0,0,0,.1); font-family:monospace">' + tag + '</div>';
@@ -1013,34 +1250,34 @@ function loadProperties() {
 
 // ==================== 在庫一覧 ====================
 function loadInventory() {
-  if (!API_URL) { toast('API URLを設定してください', 'err'); return; }
+  if (!API_URL) { toast(t('settings.apiSetErr'), 'err'); return; }
   document.getElementById('inv-table-wrap').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   apiGet('inventory')
     .then(function(r) {
-      if (!r.success) { document.getElementById('inv-table-wrap').innerHTML = '<p>エラー: ' + r.error + '</p>'; return; }
+      if (!r.success) { document.getElementById('inv-table-wrap').innerHTML = '<p>' + t('common.error') + ': ' + r.error + '</p>'; return; }
       document.getElementById('inv-clean').textContent = r.total.clean;
       document.getElementById('inv-all').textContent = r.total.all;
       document.getElementById('inv-shipped').textContent = r.total.shipped;
 
-      var html = '<table class="inv-table"><tr><th>品目</th><th style="text-align:right">クリーン</th><th style="text-align:right">全在庫</th><th style="text-align:right">出庫中</th></tr>';
+      var html = '<table class="inv-table"><tr><th>' + t('inv.thItem') + '</th><th style="text-align:right">' + t('inv.thClean') + '</th><th style="text-align:right">' + t('inv.thAll') + '</th><th style="text-align:right">' + t('inv.thShipped') + '</th></tr>';
       r.summary.forEach(function(s) {
         html += '<tr><td>' + s.name + '</td><td class="num">' + s.clean + '</td><td class="num">' + s.all + '</td><td class="num">' + s.shipped + '</td></tr>';
       });
-      html += '<tr class="total-row"><td>合計</td><td class="num">' + r.total.clean + '</td><td class="num">' + r.total.all + '</td><td class="num">' + r.total.shipped + '</td></tr>';
+      html += '<tr class="total-row"><td>' + t('inv.totalRow') + '</td><td class="num">' + r.total.clean + '</td><td class="num">' + r.total.all + '</td><td class="num">' + r.total.shipped + '</td></tr>';
       html += '</table>';
       document.getElementById('inv-table-wrap').innerHTML = html;
     })
-    .catch(function(e) { document.getElementById('inv-table-wrap').innerHTML = '<p>通信エラー: ' + e.message + '</p>'; });
+    .catch(function(e) { document.getElementById('inv-table-wrap').innerHTML = '<p>' + t('common.commError') + ': ' + e.message + '</p>'; });
 }
 
 // ==================== 履歴 ====================
 function loadHistory() {
-  if (!API_URL) { toast('API URLを設定してください', 'err'); return; }
+  if (!API_URL) { toast(t('settings.apiSetErr'), 'err'); return; }
   document.getElementById('hist-list').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   apiGet('history', { limit: 50 })
     .then(function(r) {
-      if (!r.success) { document.getElementById('hist-list').innerHTML = '<p>エラー</p>'; return; }
-      if (r.history.length === 0) { document.getElementById('hist-list').innerHTML = '<p style="color:var(--text2)">履歴なし</p>'; return; }
+      if (!r.success) { document.getElementById('hist-list').innerHTML = '<p>' + t('common.error') + '</p>'; return; }
+      if (r.history.length === 0) { document.getElementById('hist-list').innerHTML = '<p style="color:var(--text2)">' + t('history.none') + '</p>'; return; }
       var html = '';
       var opClass = { '入荷': 'op-arrival', '出庫': 'op-shipment', '入庫': 'op-return' };
       r.history.forEach(function(h) {
@@ -1054,19 +1291,19 @@ function loadHistory() {
       });
       document.getElementById('hist-list').innerHTML = html;
     })
-    .catch(function(e) { document.getElementById('hist-list').innerHTML = '<p>通信エラー: ' + e.message + '</p>'; });
+    .catch(function(e) { document.getElementById('hist-list').innerHTML = '<p>' + t('common.commError') + ': ' + e.message + '</p>'; });
 }
 
 // ==================== システム初期化 ====================
 function initSystem() {
-  if (!confirm('全データをリセットしてテストデータを投入します。よろしいですか？')) return;
-  toast('初期化中...', 'ok');
+  if (!confirm(t('settings.initConfirm'))) return;
+  toast(t('settings.initProgress'), 'ok');
   apiPost({ action: 'init' })
     .then(function(r) {
-      if (r.success) { toast('初期化完了', 'ok'); loadProperties(); loadTestTags(); }
-      else toast('エラー: ' + r.error, 'err');
+      if (r.success) { toast(t('settings.initDone'), 'ok'); loadProperties(); loadTestTags(); }
+      else toast(t('common.error') + ': ' + r.error, 'err');
     })
-    .catch(function(e) { toast('通信エラー: ' + e.message, 'err'); });
+    .catch(function(e) { toast(t('common.commError') + ': ' + e.message, 'err'); });
 }
 
 // ==================== トースト ====================
