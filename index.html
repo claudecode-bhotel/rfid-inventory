@@ -202,6 +202,7 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
   <button class="tab-btn active" data-tab="scan" data-i18n="tab.scan">スキャン</button>
   <button class="tab-btn" data-tab="inventory" data-i18n="tab.inventory">在庫一覧</button>
   <button class="tab-btn" data-tab="stocktake" data-i18n="tab.stocktake">棚卸し</button>
+  <button class="tab-btn" data-tab="warehouse" data-i18n="tab.warehouse">倉庫作業</button>
   <button class="tab-btn" data-tab="history" data-i18n="tab.history">履歴</button>
   <button class="tab-btn" data-tab="settings" data-i18n="tab.settings">設定</button>
 </div>
@@ -330,6 +331,49 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
   <div id="stocktake-result" style="display:none"></div>
 </div>
 
+<!-- ===== 倉庫作業タブ ===== -->
+<div id="tab-warehouse" class="tab-content">
+  <div class="card">
+    <h2 data-i18n="warehouse.title">🏭 倉庫作業</h2>
+    <p style="font-size:13px; color:var(--text2); margin-bottom:12px" data-i18n="warehouse.desc">
+      倉庫内でのタオルメンテナンス作業を記録します。
+    </p>
+    <div class="form-group">
+      <label data-i18n="scan.operator">実行者</label>
+      <input type="text" id="warehouse-operator-input" data-i18n-placeholder="scan.operatorPlaceholder" placeholder="名前を入力" value="">
+    </div>
+    <button class="btn btn-primary" id="warehouse-stain-start-btn" onclick="startStainRemoval()" style="background:linear-gradient(135deg, #8B5CF6 0%, #A78BFA 100%); box-shadow:0 4px 14px rgba(139,92,246,.3)">
+      <span data-i18n="warehouse.stainRemoval">🧴 染み抜き作業開始</span>
+    </button>
+  </div>
+
+  <!-- 染み抜きスキャン中 -->
+  <div id="warehouse-scan-area" style="display:none">
+    <div class="card">
+      <h2 data-i18n="scan.rfidTitle">📡 RFID読み取り</h2>
+      <div class="scan-area" id="warehouse-scan-area-inner" style="border-color:#8B5CF6; background:#F5F3FF">
+        <div class="scan-icon">🧴</div>
+        <div class="scan-label" id="warehouse-scan-label" data-i18n="warehouse.scanLabel">染み抜き対象のタオルをスキャンしてください</div>
+        <div class="scan-count" style="display:block; color:#8B5CF6"><span data-i18n="scan.readCount">読取:</span> <span id="warehouse-tag-count-num">0</span> <span data-i18n="scan.items">件</span></div>
+      </div>
+      <div id="warehouse-scanned-tags" style="margin-top:12px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+          <strong style="font-size:13px" data-i18n="scan.readStatus">読み取り状況</strong>
+          <button class="btn btn-sm btn-outline" onclick="clearWarehouseTags()" data-i18n="scan.clearAll">全クリア</button>
+        </div>
+        <div id="warehouse-tag-list"></div>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px">
+      <button class="btn btn-success" id="warehouse-exec-btn" onclick="executeStainRemoval()" style="flex:2" data-i18n="warehouse.execStain">染み抜き記録（0件）</button>
+      <button class="btn btn-outline" id="warehouse-cancel-btn" onclick="cancelStainRemoval()" style="flex:1" data-i18n="stocktake.cancel">キャンセル</button>
+    </div>
+  </div>
+
+  <!-- 染み抜き結果 -->
+  <div id="warehouse-result"></div>
+</div>
+
 <!-- ===== 履歴タブ ===== -->
 <div id="tab-history" class="tab-content">
   <div class="card">
@@ -391,8 +435,14 @@ var stockTagSet = {};
 var stockUnknownTags = [];
 var stockUnknownTagSet = {};
 
+// 倉庫作業用（染み抜き）
+var warehouseTags = [];
+var warehouseTagSet = {};
+var warehouseUnknownTags = [];
+var warehouseUnknownTagSet = {};
+
 var isScanning = false;
-var currentMode = 'scan'; // 'scan' or 'stocktake'
+var currentMode = 'scan'; // 'scan', 'stocktake', or 'warehouse'
 var currentOp = 'shipment'; // デフォルトを出庫に変更
 var opNameMap = { arrival: '入荷', shipment: '出庫', return: '入庫' };
 var tagItemMap = {};
@@ -507,7 +557,20 @@ var LANG = {
     'opName.arrival': '入荷',
     'opName.shipment': '出庫',
     'opName.return': '入庫',
-    'result.complete': '完了'
+    'result.complete': '完了',
+    'tab.warehouse': '倉庫作業',
+    'warehouse.title': '🏭 倉庫作業',
+    'warehouse.desc': '倉庫内でのタオルメンテナンス作業を記録します。',
+    'warehouse.stainRemoval': '🧴 染み抜き作業開始',
+    'warehouse.scanLabel': '染み抜き対象のタオルをスキャンしてください',
+    'warehouse.execStain': '染み抜き記録（0件）',
+    'warehouse.started': '染み抜きモード開始',
+    'warehouse.cancelled': '染み抜きモードキャンセル',
+    'warehouse.stainComplete': '染み抜き記録完了',
+    'warehouse.tagDetail': 'タグ別詳細',
+    'warehouse.washCount': '洗濯回数',
+    'warehouse.stainCount': '染み抜き回数',
+    'warehouse.limitReached': '上限到達'
   },
   en: {
     'app.title': 'RFID Towel Inventory System',
@@ -605,7 +668,20 @@ var LANG = {
     'opName.arrival': 'New Arrival',
     'opName.shipment': 'Shipment',
     'opName.return': 'Return',
-    'result.complete': 'Complete'
+    'result.complete': 'Complete',
+    'tab.warehouse': 'Warehouse',
+    'warehouse.title': '🏭 Warehouse Tasks',
+    'warehouse.desc': 'Record towel maintenance tasks in the warehouse.',
+    'warehouse.stainRemoval': '🧴 Start Stain Removal',
+    'warehouse.scanLabel': 'Scan towels for stain removal',
+    'warehouse.execStain': 'Record Stain Removal (0)',
+    'warehouse.started': 'Stain removal mode started',
+    'warehouse.cancelled': 'Stain removal mode cancelled',
+    'warehouse.stainComplete': 'Stain removal recorded',
+    'warehouse.tagDetail': 'Tag Details',
+    'warehouse.washCount': 'Wash count',
+    'warehouse.stainCount': 'Stain removal count',
+    'warehouse.limitReached': 'Limit reached'
   }
 };
 
@@ -674,7 +750,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // スキャン中または棚卸し中でなければ無視
   function _queueTag(val) {
     if (!val) return;
-    if (!isScanning && currentMode !== 'stocktake') return;
+    if (!isScanning && currentMode !== 'stocktake' && currentMode !== 'warehouse') return;
     _pendingTags.push(val);
     if (_displayTimer) clearTimeout(_displayTimer);
     _displayTimer = setTimeout(function() {
@@ -682,6 +758,7 @@ document.addEventListener('DOMContentLoaded', function() {
       _pendingTags = [];
       updateTagDisplay();
       if (currentMode === 'stocktake') updateStocktakeTagDisplay();
+      if (currentMode === 'warehouse') updateWarehouseTagDisplay();
     }, DISPLAY_DEBOUNCE_MS);
   }
 
@@ -710,7 +787,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // 実行者名をlocalStorageから復元
   var savedOp = localStorage.getItem('rfid_operator');
-  if (savedOp) document.getElementById('operator-input').value = savedOp;
+  if (savedOp) {
+    document.getElementById('operator-input').value = savedOp;
+    document.getElementById('warehouse-operator-input').value = savedOp;
+  }
 
   // 言語設定を適用
   applyLanguage();
@@ -843,6 +923,16 @@ function addTagSilent(tagId) {
         if (stockUnknownTagSet[tid]) return;
         stockUnknownTagSet[tid] = true;
         stockUnknownTags.push(tid);
+      }
+    } else if (currentMode === 'warehouse') {
+      if (isKnown) {
+        if (warehouseTagSet[tid]) return;
+        warehouseTagSet[tid] = true;
+        warehouseTags.push(tid);
+      } else {
+        if (warehouseUnknownTagSet[tid]) return;
+        warehouseUnknownTagSet[tid] = true;
+        warehouseUnknownTags.push(tid);
       }
     }
   });
@@ -1283,6 +1373,175 @@ function showStocktakeResult(matched, missing, extra, propName, expectedTotal) {
   document.getElementById('stocktake-cancel-btn').style.display = 'none';
   document.getElementById('stocktake-scan-area').style.display = 'none';
   document.getElementById('stocktake-property-select').disabled = false;
+}
+
+// ==================== 倉庫作業（染み抜き） ====================
+
+// 上限設定
+var WASH_COUNT_LIMIT = 100;
+var STAIN_COUNT_LIMIT = 5;
+
+function startStainRemoval() {
+  currentMode = 'warehouse';
+  warehouseTags = []; warehouseTagSet = {};
+  warehouseUnknownTags = []; warehouseUnknownTagSet = {};
+
+  document.getElementById('warehouse-stain-start-btn').style.display = 'none';
+  document.getElementById('warehouse-scan-area').style.display = 'block';
+  document.getElementById('warehouse-result').innerHTML = '';
+
+  // 実行者名を共有
+  var mainOp = document.getElementById('operator-input').value.trim();
+  if (mainOp) document.getElementById('warehouse-operator-input').value = mainOp;
+
+  var input = document.getElementById('scan-input');
+  input.value = '';
+  input.focus({ preventScroll: true });
+  window._warehouseFocusInterval = setInterval(function() {
+    if (currentMode === 'warehouse' && document.activeElement !== input) input.focus({ preventScroll: true });
+  }, 500);
+  toast(t('warehouse.started'), 'ok');
+}
+
+function cancelStainRemoval() {
+  currentMode = 'scan';
+  clearInterval(window._warehouseFocusInterval);
+  warehouseTags = []; warehouseTagSet = {};
+  warehouseUnknownTags = []; warehouseUnknownTagSet = {};
+
+  document.getElementById('warehouse-stain-start-btn').style.display = 'block';
+  document.getElementById('warehouse-scan-area').style.display = 'none';
+  toast(t('warehouse.cancelled'), 'ok');
+}
+
+function clearWarehouseTags() {
+  warehouseTags = []; warehouseTagSet = {};
+  warehouseUnknownTags = []; warehouseUnknownTagSet = {};
+  updateWarehouseTagDisplay();
+}
+
+function updateWarehouseTagDisplay() {
+  var knownCount = warehouseTags.length;
+  var unknownCount = warehouseUnknownTags.length;
+  var totalCount = knownCount + unknownCount;
+
+  document.getElementById('warehouse-tag-count-num').textContent = totalCount;
+
+  var itemCounts = {};
+  warehouseTags.forEach(function(tag) {
+    var itemName = tagItemMap[tag];
+    if (itemName) {
+      itemCounts[itemName] = (itemCounts[itemName] || 0) + 1;
+    }
+  });
+
+  var html = '';
+  if (knownCount > 0 || unknownCount > 0) {
+    html += '<div style="display:flex; flex-direction:column; gap:6px">';
+    Object.keys(itemCounts).forEach(function(name) {
+      html += '<div class="tag-item" style="justify-content:space-between">';
+      html += '<span style="font-weight:600">' + name + '</span>';
+      html += '<span class="count" style="font-size:18px; font-weight:700; color:#8B5CF6">' + itemCounts[name] + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    if (unknownCount > 0) {
+      html += '<div class="unknown-tags-section">';
+      html += '<h3>' + t('scan.unknownTitle') + '</h3>';
+      html += '<div class="unknown-tags-list">';
+      warehouseUnknownTags.forEach(function(tag) {
+        html += '<div class="unknown-tag-item">' + tag + '</div>';
+      });
+      html += '</div></div>';
+    }
+  }
+  document.getElementById('warehouse-tag-list').innerHTML = html;
+
+  var btn = document.getElementById('warehouse-exec-btn');
+  btn.disabled = knownCount === 0;
+  btn.textContent = t('warehouse.execStain').replace('0', String(knownCount));
+}
+
+function executeStainRemoval() {
+  var allTags = warehouseTags.concat(warehouseUnknownTags);
+  if (allTags.length === 0) { toast(t('scan.noTags'), 'err'); return; }
+
+  var operator = document.getElementById('warehouse-operator-input').value.trim() || '共通アカウント';
+  localStorage.setItem('rfid_operator', operator);
+
+  var btn = document.getElementById('warehouse-exec-btn');
+  btn.disabled = true;
+  btn.textContent = t('scan.processing');
+  clearInterval(window._warehouseFocusInterval);
+
+  apiPost({
+    action: 'stainRemoval',
+    tagIds: warehouseTags, // 既知タグのみ送信
+    operator: operator,
+  })
+  .then(function(r) {
+    if (r.success) {
+      showStainRemovalResult(r);
+      toast(t('warehouse.stainComplete') + ': ' + r.totalProcessed + t('scan.items'), 'ok');
+      warehouseTags = []; warehouseTagSet = {};
+      warehouseUnknownTags = []; warehouseUnknownTagSet = {};
+      updateWarehouseTagDisplay();
+    } else {
+      toast(t('common.error') + ': ' + r.error, 'err');
+    }
+    btn.disabled = false;
+    btn.textContent = t('warehouse.execStain').replace('0', '0');
+  })
+  .catch(function(e) {
+    toast(t('common.commError') + ': ' + e.message, 'err');
+    btn.disabled = false;
+    btn.textContent = t('warehouse.execStain').replace('0', '0');
+  });
+}
+
+function showStainRemovalResult(r) {
+  var html = '<div class="card" style="margin-top:14px">';
+  html += '<div style="font-weight:700; margin-bottom:12px; color:#8B5CF6">🧴 ' + t('warehouse.stainComplete') + '</div>';
+
+  // 品目別集計
+  var counts = r.itemCounts || {};
+  var total = 0;
+  Object.keys(counts).forEach(function(name) {
+    html += '<div class="result-item"><span>' + name + '</span><span class="count" style="color:#8B5CF6">' + counts[name] + '</span></div>';
+    total += counts[name];
+  });
+  html += '<div class="result-item" style="border-top:2px solid rgba(0,0,0,.1);margin-top:4px;padding-top:8px"><span><strong>' + t('scan.total') + '</strong></span><span class="count" style="color:#8B5CF6">' + total + '</span></div>';
+
+  // タグ別詳細（上限警告含む）
+  if (r.tagDetails && r.tagDetails.length > 0) {
+    html += '<div style="margin-top:14px; border-top:1px solid var(--border); padding-top:12px">';
+    html += '<div style="font-size:13px; font-weight:700; margin-bottom:8px">' + t('warehouse.tagDetail') + '</div>';
+    r.tagDetails.forEach(function(td) {
+      var washWarning = td.washCount >= WASH_COUNT_LIMIT;
+      var stainWarning = td.stainCount >= STAIN_COUNT_LIMIT;
+      html += '<div style="padding:8px 10px; margin-bottom:6px; border-radius:10px; background:' + (washWarning || stainWarning ? 'var(--danger-light)' : 'var(--bg)') + '; border-left:3px solid ' + (washWarning || stainWarning ? 'var(--danger)' : '#8B5CF6') + '">';
+      html += '<div style="font-size:12px; font-family:monospace; font-weight:600">' + td.tagId.substring(td.tagId.length - 8) + ' <span style="font-family:sans-serif; color:var(--text2)">(' + td.itemName + ')</span></div>';
+      html += '<div style="font-size:11px; color:var(--text2); margin-top:4px">';
+      html += t('warehouse.washCount') + ': <strong>' + td.washCount + '</strong>';
+      if (washWarning) html += ' <span style="color:var(--danger)">⚠ ' + t('warehouse.limitReached') + '</span>';
+      html += ' / ' + t('warehouse.stainCount') + ': <strong>' + td.stainCount + '</strong>';
+      if (stainWarning) html += ' <span style="color:var(--danger)">⚠ ' + t('warehouse.limitReached') + '</span>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  if (r.warnings && r.warnings.length) {
+    html += '<div style="margin-top:8px;font-size:12px;color:var(--warning)">⚠ ' + r.warnings.join(', ') + '</div>';
+  }
+
+  html += '</div>';
+
+  document.getElementById('warehouse-result').innerHTML = html;
+  currentMode = 'scan';
+  document.getElementById('warehouse-stain-start-btn').style.display = 'block';
+  document.getElementById('warehouse-scan-area').style.display = 'none';
 }
 
 // ==================== 物件マスタ ====================
