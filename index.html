@@ -102,7 +102,7 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 .scan-area .scan-label { font-size: 14px; color: var(--text2); font-weight: 500; }
 .scan-area.scanning .scan-label { color: var(--primary-dark); font-weight: 700; }
 .scan-count { font-size: 28px; font-weight: 800; color: var(--primary); margin: 8px 0; }
-#scan-input { position: absolute; left: -9999px; opacity: 0; }
+#scan-input { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; z-index: -1; }
 
 /* ========== タグリスト ========== */
 .tag-list { margin: 8px 0; }
