@@ -194,6 +194,9 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
   </div>
 </div>
 
+<!-- DataWedge用の非表示入力フィールド（タブ外に配置し常時アクセス可能） -->
+<input type="text" id="scan-input" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+
 <!-- タブ -->
 <div class="tab-nav">
   <button class="tab-btn active" data-tab="scan" data-i18n="tab.scan">スキャン</button>
@@ -239,9 +242,6 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
       <div class="scan-label" id="scan-label" data-i18n="scan.tapToStart">タップしてスキャン開始</div>
       <div class="scan-count" id="scan-count" style="display:none"><span data-i18n="scan.readCount">読取:</span> <span id="tag-count-num">0</span> <span data-i18n="scan.items">件</span></div>
     </div>
-    <!-- DataWedge用の非表示入力フィールド -->
-    <input type="text" id="scan-input" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-
     <!-- 読み取り状況（品目別集計） -->
     <div id="scanned-tags" style="display:none">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
@@ -1100,12 +1100,18 @@ function startStocktake() {
   document.getElementById('stocktake-scan-area').style.display = 'block';
   document.getElementById('stocktake-result').style.display = 'none';
 
-  document.getElementById('scan-input').focus();
+  var input = document.getElementById('scan-input');
+  input.value = '';
+  input.focus();
+  window._stocktakeFocusInterval = setInterval(function() {
+    if (currentMode === 'stocktake' && document.activeElement !== input) input.focus();
+  }, 500);
   toast(t('stocktake.started'), 'ok');
 }
 
 function cancelStocktake() {
   currentMode = 'scan';
+  clearInterval(window._stocktakeFocusInterval);
   stockTags = [];
   stockTagSet = {};
   stockUnknownTags = [];
@@ -1121,7 +1127,10 @@ function cancelStocktake() {
 }
 
 function finishStocktake() {
-  if (stockTags.length === 0) {
+  clearInterval(window._stocktakeFocusInterval);
+  // 既知・未知両方を合算してチェック
+  var allScannedTags = stockTags.concat(stockUnknownTags);
+  if (allScannedTags.length === 0) {
     toast(t('stocktake.noTags'), 'err');
     return;
   }
@@ -1146,13 +1155,19 @@ function finishStocktake() {
         systemTagSet[tag] = true;
       });
 
-      // 比較処理
+      // 比較処理（既知+未知の全スキャンタグを使用）
       var matchedTags = [];
       var missingTags = [];
       var extraTags = [];
 
-      // スキャン済みで在庫にあるもの
-      stockTags.forEach(function(tag) {
+      // スキャン済みのセットを作成
+      var scannedSet = {};
+      allScannedTags.forEach(function(tag) {
+        scannedSet[tag] = true;
+      });
+
+      // スキャン済みで在庫にあるもの / ないもの
+      allScannedTags.forEach(function(tag) {
         if (systemTagSet[tag]) {
           matchedTags.push(tag);
         } else {
@@ -1162,8 +1177,6 @@ function finishStocktake() {
 
       // スキャン漏れ（在庫にあるのにスキャンされていない）
       Object.keys(systemTagSet).forEach(function(tag) {
-        var scannedSet = {};
-        stockTags.forEach(function(t) { scannedSet[t] = true; });
         if (!scannedSet[tag]) {
           missingTags.push(tag);
         }
