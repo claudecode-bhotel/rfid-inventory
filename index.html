@@ -290,8 +290,15 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
   <div class="card">
     <h2 data-i18n="stocktake.title">📋 棚卸し</h2>
     <p style="font-size:13px; color:var(--text2); margin-bottom:12px" data-i18n="stocktake.desc">
-      倉庫内のすべてのタオルをスキャンして、在庫の正確性を確認します。
+      物件を選択し、その場所にあるすべてのタオルをスキャンして在庫の正確性を確認します。
     </p>
+    <div style="margin-bottom:12px">
+      <label style="font-size:13px; font-weight:600; display:block; margin-bottom:4px" data-i18n="stocktake.selectProperty">棚卸し対象</label>
+      <select id="stocktake-property-select" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius-sm); font-size:14px; background:var(--bg)">
+        <option value="__all__" data-i18n="stocktake.allLocations">すべての場所</option>
+        <option value="メイン倉庫" data-i18n="stocktake.mainWarehouse">メイン倉庫</option>
+      </select>
+    </div>
     <button class="btn btn-primary" id="stocktake-start-btn" onclick="startStocktake()" data-i18n="stocktake.start">棚卸し開始</button>
     <button class="btn btn-success" id="stocktake-finish-btn" onclick="finishStocktake()" style="display:none" data-i18n="stocktake.finish">棚卸し完了</button>
     <button class="btn btn-outline" id="stocktake-cancel-btn" onclick="cancelStocktake()" style="display:none" data-i18n="stocktake.cancel">キャンセル</button>
@@ -457,7 +464,10 @@ var LANG = {
     'common.error': 'エラー',
     'common.commError': '通信エラー',
     'stocktake.title': '📋 棚卸し',
-    'stocktake.desc': '倉庫内のすべてのタオルをスキャンして、在庫の正確性を確認します。',
+    'stocktake.desc': '物件を選択し、その場所にあるすべてのタオルをスキャンして在庫の正確性を確認します。',
+    'stocktake.selectProperty': '棚卸し対象',
+    'stocktake.allLocations': 'すべての場所',
+    'stocktake.mainWarehouse': 'メイン倉庫',
     'stocktake.start': '棚卸し開始',
     'stocktake.finish': '棚卸し完了',
     'stocktake.cancel': 'キャンセル',
@@ -465,12 +475,14 @@ var LANG = {
     'stocktake.cancelled': '棚卸しキャンセル',
     'stocktake.noTags': 'タグがスキャンされていません',
     'stocktake.fetchError': '在庫データの取得に失敗',
+    'stocktake.expectedCount': 'システム登録数',
+    'stocktake.scannedCount': 'スキャン数',
     'stocktake.matched': '✓ 在庫一致',
-    'stocktake.matchedDesc': 'スキャン済みで在庫にあるタオル',
+    'stocktake.matchedDesc': 'スキャン済みで対象場所の在庫にあるタオル',
     'stocktake.missing': '⚠️ スキャン漏れ',
-    'stocktake.missingDesc': '在庫にあるのにスキャンされなかったタオル',
-    'stocktake.extra': '❌ 未登録',
-    'stocktake.extraDesc': 'スキャンしたが在庫に無いタオル',
+    'stocktake.missingDesc': '対象場所にあるはずなのにスキャンされなかったタオル',
+    'stocktake.extra': '❌ 未登録/別の場所',
+    'stocktake.extraDesc': 'スキャンしたが対象場所の在庫に無いタオル',
     'history.title': 'スキャン履歴',
     'history.none': '履歴なし',
     'settings.apiTitle': 'API設定',
@@ -550,7 +562,10 @@ var LANG = {
     'common.error': 'Error',
     'common.commError': 'Connection Error',
     'stocktake.title': '📋 Stocktake',
-    'stocktake.desc': 'Scan all towels in the warehouse to verify inventory accuracy.',
+    'stocktake.desc': 'Select a property and scan all towels to verify inventory accuracy.',
+    'stocktake.selectProperty': 'Stocktake target',
+    'stocktake.allLocations': 'All locations',
+    'stocktake.mainWarehouse': 'Main warehouse',
     'stocktake.start': 'Start Stocktake',
     'stocktake.finish': 'Finish Stocktake',
     'stocktake.cancel': 'Cancel',
@@ -558,12 +573,14 @@ var LANG = {
     'stocktake.cancelled': 'Stocktake cancelled',
     'stocktake.noTags': 'No tags scanned yet',
     'stocktake.fetchError': 'Failed to retrieve inventory data',
+    'stocktake.expectedCount': 'Expected',
+    'stocktake.scannedCount': 'Scanned',
     'stocktake.matched': '✓ Matched',
-    'stocktake.matchedDesc': 'Scanned towels found in inventory',
+    'stocktake.matchedDesc': 'Scanned towels found at this location',
     'stocktake.missing': '⚠️ Missing',
-    'stocktake.missingDesc': 'In inventory but not scanned',
-    'stocktake.extra': '❌ Unregistered',
-    'stocktake.extraDesc': 'Scanned but not in inventory',
+    'stocktake.missingDesc': 'Should be at this location but not scanned',
+    'stocktake.extra': '❌ Unregistered/Wrong location',
+    'stocktake.extraDesc': 'Scanned but not expected at this location',
     'history.title': 'Scan History',
     'history.none': 'No history',
     'settings.apiTitle': 'API Settings',
@@ -774,10 +791,10 @@ function startScan() {
 
   var input = document.getElementById('scan-input');
   input.value = '';
-  input.focus();
+  input.focus({ preventScroll: true });
 
   window._scanFocusInterval = setInterval(function() {
-    if (isScanning && document.activeElement !== input) input.focus();
+    if (isScanning && document.activeElement !== input) input.focus({ preventScroll: true });
   }, 500);
 }
 
@@ -1099,14 +1116,19 @@ function startStocktake() {
   document.getElementById('stocktake-cancel-btn').style.display = 'block';
   document.getElementById('stocktake-scan-area').style.display = 'block';
   document.getElementById('stocktake-result').style.display = 'none';
+  document.getElementById('stocktake-property-select').disabled = true;
+
+  var sel = document.getElementById('stocktake-property-select');
+  var propName = sel.options[sel.selectedIndex].text;
+  document.getElementById('stocktake-scan-label').textContent = t('scan.scanning') + ' (' + propName + ')';
 
   var input = document.getElementById('scan-input');
   input.value = '';
-  input.focus();
+  input.focus({ preventScroll: true });
   window._stocktakeFocusInterval = setInterval(function() {
-    if (currentMode === 'stocktake' && document.activeElement !== input) input.focus();
+    if (currentMode === 'stocktake' && document.activeElement !== input) input.focus({ preventScroll: true });
   }, 500);
-  toast(t('stocktake.started'), 'ok');
+  toast(t('stocktake.started') + ' - ' + propName, 'ok');
 }
 
 function cancelStocktake() {
@@ -1122,13 +1144,16 @@ function cancelStocktake() {
   document.getElementById('stocktake-cancel-btn').style.display = 'none';
   document.getElementById('stocktake-scan-area').style.display = 'none';
   document.getElementById('stocktake-result').style.display = 'none';
+  document.getElementById('stocktake-property-select').disabled = false;
 
   toast(t('stocktake.cancelled'), 'ok');
 }
 
 function finishStocktake() {
   clearInterval(window._stocktakeFocusInterval);
-  if (stockTags.length === 0) {
+  // 既知・未知両方を合算してチェック
+  var allScannedTags = stockTags.concat(stockUnknownTags);
+  if (allScannedTags.length === 0) {
     toast(t('stocktake.noTags'), 'err');
     return;
   }
@@ -1136,6 +1161,9 @@ function finishStocktake() {
   var btn = document.getElementById('stocktake-finish-btn');
   btn.disabled = true;
   btn.textContent = t('scan.processing');
+
+  // 選択された物件を取得
+  var selectedProperty = document.getElementById('stocktake-property-select').value;
 
   // インベントリAPIからすべてのタグを取得
   apiGet('inventory')
@@ -1147,19 +1175,36 @@ function finishStocktake() {
         return;
       }
 
-      // APIから返されたすべてのタグIDを集める
+      var tagLocationMap = r.tagLocationMap || {};
+
+      // 選択物件に該当するタグのみをシステム側対象にする
       var systemTagSet = {};
       r.allTags.forEach(function(tag) {
-        systemTagSet[tag] = true;
+        if (selectedProperty === '__all__') {
+          // 全体棚卸し：すべてのタグが対象
+          systemTagSet[tag] = true;
+        } else {
+          // 物件別棚卸し：所在が一致するタグのみ
+          var loc = tagLocationMap[tag] || '';
+          if (loc === selectedProperty) {
+            systemTagSet[tag] = true;
+          }
+        }
       });
 
-      // 比較処理
+      // 比較処理（既知+未知の全スキャンタグを使用）
       var matchedTags = [];
       var missingTags = [];
       var extraTags = [];
 
-      // スキャン済みで在庫にあるもの
-      stockTags.forEach(function(tag) {
+      // スキャン済みのセットを作成
+      var scannedSet = {};
+      allScannedTags.forEach(function(tag) {
+        scannedSet[tag] = true;
+      });
+
+      // スキャン済みで在庫にあるもの / ないもの
+      allScannedTags.forEach(function(tag) {
         if (systemTagSet[tag]) {
           matchedTags.push(tag);
         } else {
@@ -1167,16 +1212,16 @@ function finishStocktake() {
         }
       });
 
-      // スキャン漏れ（在庫にあるのにスキャンされていない）
+      // スキャン漏れ（対象場所にあるはずなのにスキャンされていない）
       Object.keys(systemTagSet).forEach(function(tag) {
-        var scannedSet = {};
-        stockTags.forEach(function(t) { scannedSet[t] = true; });
         if (!scannedSet[tag]) {
           missingTags.push(tag);
         }
       });
 
-      showStocktakeResult(matchedTags, missingTags, extraTags);
+      var sel = document.getElementById('stocktake-property-select');
+      var propName = sel.options[sel.selectedIndex].text;
+      showStocktakeResult(matchedTags, missingTags, extraTags, propName, Object.keys(systemTagSet).length);
       btn.disabled = false;
       btn.textContent = t('stocktake.finish');
     })
@@ -1187,8 +1232,14 @@ function finishStocktake() {
     });
 }
 
-function showStocktakeResult(matched, missing, extra) {
+function showStocktakeResult(matched, missing, extra, propName, expectedTotal) {
   var html = '<div class="stocktake-results">';
+
+  // ヘッダー：対象物件と概要
+  html += '<div style="padding:12px 14px; background:var(--bg2); border-radius:var(--radius-sm); margin-bottom:10px">';
+  html += '<div style="font-size:13px; font-weight:700; margin-bottom:6px">📍 ' + (propName || t('stocktake.allLocations')) + '</div>';
+  html += '<div style="font-size:12px; color:var(--text2)">' + t('stocktake.expectedCount') + ': ' + expectedTotal + t('scan.items') + ' / ' + t('stocktake.scannedCount') + ': ' + (matched.length + extra.length) + t('scan.items') + '</div>';
+  html += '</div>';
 
   html += '<div class="stocktake-result-section stocktake-result-matched">';
   html += '<h3>' + t('stocktake.matched') + ' <span class="stocktake-result-count">' + matched.length + '</span> ' + t('scan.items') + '</h3>';
@@ -1231,6 +1282,7 @@ function showStocktakeResult(matched, missing, extra) {
   document.getElementById('stocktake-finish-btn').style.display = 'none';
   document.getElementById('stocktake-cancel-btn').style.display = 'none';
   document.getElementById('stocktake-scan-area').style.display = 'none';
+  document.getElementById('stocktake-property-select').disabled = false;
 }
 
 // ==================== 物件マスタ ====================
@@ -1238,11 +1290,21 @@ function loadProperties() {
   if (!API_URL) return;
   apiGet('properties').then(function(r) {
     if (!r.success) return;
+    // スキャンタブの物件セレクト
     var sel = document.getElementById('property-select');
     sel.innerHTML = '<option value="" data-i18n="scan.selectProperty">' + t('scan.selectProperty') + '</option>';
     r.properties.forEach(function(p) {
       sel.innerHTML += '<option value="' + p.id + '">' + p.name + '</option>';
     });
+    // 棚卸しタブの物件セレクト
+    var stSel = document.getElementById('stocktake-property-select');
+    if (stSel) {
+      stSel.innerHTML = '<option value="__all__">' + t('stocktake.allLocations') + '</option>';
+      stSel.innerHTML += '<option value="メイン倉庫">' + t('stocktake.mainWarehouse') + '</option>';
+      r.properties.forEach(function(p) {
+        stSel.innerHTML += '<option value="' + p.id + '">' + p.name + '</option>';
+      });
+    }
   }).catch(function() {});
 }
 
