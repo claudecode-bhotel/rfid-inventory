@@ -73,6 +73,12 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 .op-btn[data-op="shipment"].selected { border-color: var(--warning); background: var(--warning-light); }
 .op-btn[data-op="return"].selected { border-color: var(--primary); background: var(--primary-light); }
 
+/* 入荷操作の折り畳みセクション */
+.op-btn-arrival-section { margin-top: 8px; padding: 12px; border-radius: var(--radius); background: var(--warning-light); border: 1px solid #FFAB91; }
+.op-btn-arrival-section summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--warning); display: flex; align-items: center; gap: 8px; user-select: none; }
+.op-btn-arrival-section[open] { background: var(--warning-light); }
+.op-btn-arrival-section .op-btn { margin-top: 10px; }
+
 /* スキャンエリア */
 .scan-area { border: 3px dashed var(--border); border-radius: var(--radius); padding: 20px; text-align: center; transition: all .3s; margin-bottom: 14px; }
 .scan-area.scanning { border-color: var(--success); background: var(--success-light); animation: scan-pulse 2s infinite; }
@@ -88,6 +94,12 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 .tag-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
 .tag-item .tag-id { font-weight: 600; font-family: monospace; }
 .tag-item .tag-remove { color: var(--danger); cursor: pointer; font-size: 18px; padding: 0 4px; }
+
+/* 不明タグセクション */
+.unknown-tags-section { padding: 12px; border-radius: 8px; background: #FFF3E0; border: 1px solid #FFAB91; margin: 10px 0; }
+.unknown-tags-section h3 { font-size: 13px; font-weight: 600; color: var(--warning); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.unknown-tags-list { display: flex; flex-direction: column; gap: 6px; }
+.unknown-tag-item { padding: 6px 8px; background: #fff; border-radius: 4px; border-left: 3px solid var(--warning); font-size: 12px; font-family: monospace; color: var(--warning); }
 
 /* 結果表示 */
 .result-box { padding: 14px; border-radius: 8px; margin: 12px 0; }
@@ -112,6 +124,18 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 .inv-table td { padding: 10px 8px; border-bottom: 1px solid var(--border); font-size: 14px; }
 .inv-table .num { text-align: right; font-weight: 600; font-size: 16px; }
 .inv-table .total-row td { font-weight: 700; border-top: 2px solid var(--text); }
+
+/* 棚卸し結果 */
+.stocktake-results { margin-top: 16px; }
+.stocktake-result-section { padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+.stocktake-result-section h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.stocktake-result-matched { background: var(--success-light); border: 1px solid #A5D6A7; }
+.stocktake-result-matched h3 { color: var(--success); }
+.stocktake-result-missing { background: #FFF3E0; border: 1px solid #FFAB91; }
+.stocktake-result-missing h3 { color: var(--warning); }
+.stocktake-result-extra { background: #FFEBEE; border: 1px solid #EF9A9A; }
+.stocktake-result-extra h3 { color: var(--danger); }
+.stocktake-result-count { font-size: 24px; font-weight: 700; display: inline-block; }
 
 /* 履歴 */
 .hist-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
@@ -154,6 +178,7 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 <div class="tab-nav">
   <button class="tab-btn active" data-tab="scan">スキャン</button>
   <button class="tab-btn" data-tab="inventory">在庫一覧</button>
+  <button class="tab-btn" data-tab="stocktake">棚卸し</button>
   <button class="tab-btn" data-tab="history">履歴</button>
   <button class="tab-btn" data-tab="settings">設定</button>
 </div>
@@ -163,16 +188,19 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
   <div class="card">
     <h2>操作種別を選択</h2>
     <div class="op-select">
-      <div class="op-btn selected" data-op="arrival" onclick="selectOp(this)">
-        <span class="icon">📦</span><span class="label">入荷</span>
-      </div>
-      <div class="op-btn" data-op="shipment" onclick="selectOp(this)">
+      <div class="op-btn selected" data-op="shipment" onclick="selectOp(this)">
         <span class="icon">🚚</span><span class="label">出庫</span>
       </div>
       <div class="op-btn" data-op="return" onclick="selectOp(this)">
         <span class="icon">🏠</span><span class="label">入庫</span>
       </div>
     </div>
+    <details class="op-btn-arrival-section">
+      <summary>⚠ 入荷（低頻度操作）</summary>
+      <div class="op-btn" data-op="arrival" onclick="selectOp(this)">
+        <span class="icon">📦</span><span class="label">入荷</span>
+      </div>
+    </details>
     <div class="form-group" id="property-group" style="display:none">
       <label>搬入先物件</label>
       <select id="property-select"><option value="">-- 物件を選択 --</option></select>
@@ -237,6 +265,44 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
   <button class="btn btn-outline" onclick="loadInventory()">更新</button>
 </div>
 
+<!-- ===== 棚卸しタブ ===== -->
+<div id="tab-stocktake" class="tab-content">
+  <div class="card">
+    <h2>📋 棚卸し</h2>
+    <p style="font-size:13px; color:var(--text2); margin-bottom:12px">
+      倉庫内のすべてのタオルをスキャンして、在庫の正確性を確認します。
+    </p>
+    <button class="btn btn-primary" id="stocktake-start-btn" onclick="startStocktake()">棚卸し開始</button>
+    <button class="btn btn-success" id="stocktake-finish-btn" onclick="finishStocktake()" style="display:none">棚卸し完了</button>
+    <button class="btn btn-outline" id="stocktake-cancel-btn" onclick="cancelStocktake()" style="display:none">キャンセル</button>
+  </div>
+
+  <!-- 棚卸し中のスキャン表示 -->
+  <div id="stocktake-scan-area" style="display:none">
+    <div class="card">
+      <h2>📡 RFID読み取り</h2>
+      <div class="scan-area" id="stocktake-scan-area-inner" style="border-color:var(--primary); background:var(--primary-light)">
+        <div class="scan-icon">📡</div>
+        <div class="scan-label" id="stocktake-scan-label">スキャン中... RFIDトリガーを引いてください</div>
+        <div class="scan-count" id="stocktake-scan-count" style="display:block">読取: <span id="stocktake-tag-count-num">0</span> 件</div>
+      </div>
+      <!-- スキャン用の非表示入力フィールド（スキャンタブと共用） -->
+
+      <!-- スキャン状況表示 -->
+      <div id="stocktake-scanned-tags" style="margin-top:12px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+          <strong style="font-size:13px">読み取り状況</strong>
+          <button class="btn btn-sm btn-outline" onclick="clearStocktakeTags()">全クリア</button>
+        </div>
+        <div id="stocktake-tag-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 棚卸し結果表示 -->
+  <div id="stocktake-result" style="display:none"></div>
+</div>
+
 <!-- ===== 履歴タブ ===== -->
 <div id="tab-history" class="tab-content">
   <div class="card">
@@ -285,17 +351,35 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 var DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycbz-BZzyj-xnCqjratg4uLcZKz9ccBIF6GRO53fkngB_qpOFweV70V_VrrHQTVyO9r4/exec';
 localStorage.removeItem('rfid_api_url'); // 古いキャッシュをクリア
 var API_URL = DEFAULT_API_URL;
-var scannedTags = [];
-var scannedTagSet = {}; // 高速重複チェック用ハッシュ（1000件でもO(1)検索）
-var isScanning = false;
-var currentOp = 'arrival';
-var opNameMap = { arrival: '入荷', shipment: '出庫', return: '入庫' };
-var tagItemMap = {}; // タグID → 品目名マッピング（API起動時にロード）
 
-// タグIDプレフィックスパターン（自社タグの先頭文字列）
-var TAG_PREFIX = 'E2806A96';
-var TAG_LENGTH = 24; // 1タグIDの標準文字数
-var TAG_HEX_REGEX = /^[0-9A-F]+$/; // 有効なタグID判定（16進数のみ）
+// スキャン用
+var scannedTags = [];
+var scannedTagSet = {};
+var unknownTags = [];
+var unknownTagSet = {};
+
+// 棚卸し用
+var stockTags = [];
+var stockTagSet = {};
+var stockUnknownTags = [];
+var stockUnknownTagSet = {};
+
+var isScanning = false;
+var currentMode = 'scan'; // 'scan' or 'stocktake'
+var currentOp = 'shipment'; // デフォルトを出庫に変更
+var opNameMap = { arrival: '入荷', shipment: '出庫', return: '入庫' };
+var tagItemMap = {};
+
+// 既知のプレフィックスと対応する品目
+var KNOWN_PREFIXES = {
+  'E2806A96': '(テスト)',
+  '11630100': 'フェイスタオル',
+  '12630100': 'バスタオル',
+  '13630100': 'バスマット'
+};
+
+var TAG_LENGTH = 24;
+var TAG_HEX_REGEX = /^[0-9A-F]+$/;
 
 // ==================== 初期化 ====================
 document.addEventListener('DOMContentLoaded', function() {
@@ -320,16 +404,37 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // DataWedge高速入力ハンドラ
-  // Keystroke出力は1文字ずつ送信されるため、Enter待ち＋パターン検知の二重方式で高速化
+  // DataWedge高速入力ハンドラ（常に受け付ける）
   var scanInput = document.getElementById('scan-input');
   var _pendingTags = [];
   var _displayTimer = null;
-  var DISPLAY_DEBOUNCE_MS = 500; // 表示更新は500ms間隔でバッチ処理（1000枚対応）
+  var DISPLAY_DEBOUNCE_MS = 500;
   var _autoFlushTimer = null;
-  var AUTO_FLUSH_MS = 80; // 80ms入力停止でタグ確定（Enter不要時のフォールバック）
+  var AUTO_FLUSH_MS = 80;
 
-  // タグを内部キューに追加（DOM更新はデバウンス）
+  // 初期フォーカス
+  scanInput.focus();
+
+  // ドキュメントレベルのキー入力リスナー: いかなる入力でもスキャン入力に誘導
+  document.addEventListener('keydown', function(e) {
+    if (document.activeElement !== scanInput && e.key !== 'Tab') {
+      scanInput.focus();
+    }
+  });
+
+  // フォーカス保持（常に）
+  window._scanFocusInterval = setInterval(function() {
+    if (document.activeElement !== scanInput && !isFormElement(document.activeElement)) {
+      scanInput.focus();
+    }
+  }, 500);
+
+  function isFormElement(el) {
+    if (!el) return false;
+    var tagName = el.tagName.toLowerCase();
+    return tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+  }
+
   function _queueTag(val) {
     if (!val) return;
     _pendingTags.push(val);
@@ -338,6 +443,12 @@ document.addEventListener('DOMContentLoaded', function() {
       _pendingTags.forEach(function(t) { addTagSilent(t); });
       _pendingTags = [];
       updateTagDisplay();
+      // 最初のタグ受信でスキャンモード自動開始
+      if (currentMode === 'scan' && scannedTags.length > 0 && !isScanning) {
+        startScan();
+      } else if (currentMode === 'stocktake' && stockTags.length > 0) {
+        // 棚卸しモードでも自動で表示更新
+      }
     }, DISPLAY_DEBOUNCE_MS);
   }
 
@@ -352,12 +463,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // 文字入力監視: Enter無しでも自動検出（入力が止まったらタグ確定）
+  // 文字入力監視: Enter無しでも自動検出
   scanInput.addEventListener('input', function() {
     if (_autoFlushTimer) clearTimeout(_autoFlushTimer);
     _autoFlushTimer = setTimeout(function() {
       var val = scanInput.value.trim();
-      if (val && val.length >= 16) { // 16文字以上でタグとして確定
+      if (val && val.length >= 16) {
         scanInput.value = '';
         _queueTag(val);
       }
@@ -421,9 +532,14 @@ function selectOp(el) {
   el.classList.add('selected');
   currentOp = el.dataset.op;
   document.getElementById('property-group').style.display = currentOp === 'shipment' ? 'block' : 'none';
+
+  // 入荷が選ばれた際の通知
+  if (currentOp === 'arrival') {
+    toast('⚠ 入荷操作が選択されました', 'ok');
+  }
 }
 
-// ==================== RFIDスキャン ====================
+// ==================== RFIDスキャン（スキャンタブ用） ====================
 function toggleScan() {
   if (isScanning) stopScan();
   else startScan();
@@ -438,97 +554,133 @@ function startScan() {
   document.getElementById('scan-count').style.display = 'block';
 
   var input = document.getElementById('scan-input');
-  input.value = '';
   input.focus();
-
-  window._scanFocusInterval = setInterval(function() {
-    if (isScanning && document.activeElement !== input) input.focus();
-  }, 500);
 }
 
 function stopScan() {
   isScanning = false;
-  clearInterval(window._scanFocusInterval);
   var area = document.getElementById('scan-area');
   area.classList.remove('scanning');
   document.getElementById('scan-icon').textContent = '📡';
   document.getElementById('scan-label').textContent = 'タップしてスキャン開始';
 }
 
-// タグ追加（表示更新なし：バッチ処理用）
+// ==================== タグ追加 ====================
 function addTagSilent(tagId) {
   tagId = tagId.trim().toUpperCase();
   if (!tagId) return;
   var splitTags = splitConcatenatedTags(tagId);
   splitTags.forEach(function(tid) {
-    if (TAG_PREFIX && !tid.startsWith(TAG_PREFIX)) return;
-    if (!TAG_HEX_REGEX.test(tid)) return; // 非16進文字を含むゴミデータを除外
-    if (tid.length < 16) return; // 短すぎるタグIDを除外
-    if (scannedTagSet[tid]) return; // O(1)重複チェック（1000件でも高速）
-    scannedTagSet[tid] = true;
-    scannedTags.push(tid);
+    if (!TAG_HEX_REGEX.test(tid)) return;
+    if (tid.length < 16) return;
+
+    // 既知プレフィックスをチェック
+    var isKnown = false;
+    Object.keys(KNOWN_PREFIXES).forEach(function(prefix) {
+      if (tid.startsWith(prefix)) {
+        isKnown = true;
+      }
+    });
+
+    if (currentMode === 'scan') {
+      if (isKnown) {
+        if (scannedTagSet[tid]) return;
+        scannedTagSet[tid] = true;
+        scannedTags.push(tid);
+      } else {
+        if (unknownTagSet[tid]) return;
+        unknownTagSet[tid] = true;
+        unknownTags.push(tid);
+      }
+    } else if (currentMode === 'stocktake') {
+      if (isKnown) {
+        if (stockTagSet[tid]) return;
+        stockTagSet[tid] = true;
+        stockTags.push(tid);
+      } else {
+        if (stockUnknownTagSet[tid]) return;
+        stockUnknownTagSet[tid] = true;
+        stockUnknownTags.push(tid);
+      }
+    }
   });
 }
 
-// タグ追加（表示更新あり：テストボタン等の個別追加用）
 function addTag(tagId) {
   addTagSilent(tagId);
   if (navigator.vibrate) navigator.vibrate(50);
   updateTagDisplay();
 }
 
-// 結合されたタグIDを分割する
+// 複数プレフィックス対応の分割
 function splitConcatenatedTags(raw) {
   if (!raw) return [];
-  if (TAG_PREFIX && raw.indexOf(TAG_PREFIX) !== -1) {
-    var parts = [];
-    var remaining = raw;
-    while (remaining.length > 0) {
-      var nextIdx = remaining.indexOf(TAG_PREFIX, 1);
-      if (nextIdx > 0) {
-        parts.push(remaining.substring(0, nextIdx));
-        remaining = remaining.substring(nextIdx);
-      } else {
-        parts.push(remaining);
-        remaining = '';
+
+  // すべての既知プレフィックスで試す
+  var allPrefixes = Object.keys(KNOWN_PREFIXES);
+  for (var i = 0; i < allPrefixes.length; i++) {
+    var prefix = allPrefixes[i];
+    if (raw.indexOf(prefix) !== -1) {
+      var parts = [];
+      var remaining = raw;
+      while (remaining.length > 0) {
+        var nextIdx = remaining.indexOf(prefix, 1);
+        if (nextIdx > 0) {
+          parts.push(remaining.substring(0, nextIdx));
+          remaining = remaining.substring(nextIdx);
+        } else {
+          parts.push(remaining);
+          remaining = '';
+        }
       }
+      return parts.filter(function(p) { return p.length >= 16; }).map(function(p) {
+        if (TAG_LENGTH && p.startsWith(prefix) && p.length > TAG_LENGTH) {
+          return p.substring(0, TAG_LENGTH);
+        }
+        return p;
+      });
     }
-    return parts.filter(function(p) { return p.length >= 16; }).map(function(p) {
-      if (TAG_LENGTH && p.startsWith(TAG_PREFIX) && p.length > TAG_LENGTH) {
-        return p.substring(0, TAG_LENGTH);
-      }
-      return p;
-    });
   }
+
   return [raw];
 }
 
 function clearTags() {
   scannedTags = [];
   scannedTagSet = {};
+  unknownTags = [];
+  unknownTagSet = {};
   updateTagDisplay();
 }
 
-function updateTagDisplay() {
-  var count = scannedTags.length;
-  document.getElementById('tag-count-num').textContent = count;
-  document.getElementById('scan-count').style.display = count > 0 ? 'block' : 'none';
-  document.getElementById('scanned-tags').style.display = count > 0 ? 'block' : 'none';
+function clearStocktakeTags() {
+  stockTags = [];
+  stockTagSet = {};
+  stockUnknownTags = [];
+  stockUnknownTagSet = {};
+  updateStocktakeTagDisplay();
+}
 
-  // 品目別集計
+// ==================== タグ表示更新（スキャン） ====================
+function updateTagDisplay() {
+  var knownCount = scannedTags.length;
+  var unknownCount = unknownTags.length;
+  var totalCount = knownCount + unknownCount;
+
+  document.getElementById('tag-count-num').textContent = totalCount;
+  document.getElementById('scan-count').style.display = totalCount > 0 ? 'block' : 'none';
+  document.getElementById('scanned-tags').style.display = totalCount > 0 ? 'block' : 'none';
+
   var itemCounts = {};
-  var unknownCount = 0;
   scannedTags.forEach(function(tag) {
     var itemName = tagItemMap[tag];
     if (itemName) {
       itemCounts[itemName] = (itemCounts[itemName] || 0) + 1;
-    } else {
-      unknownCount++;
     }
   });
 
   var html = '';
-  if (count > 0) {
+  if (knownCount > 0 || unknownCount > 0) {
     html += '<div style="display:flex; flex-direction:column; gap:6px">';
     Object.keys(itemCounts).forEach(function(name) {
       html += '<div class="tag-item" style="justify-content:space-between">';
@@ -536,24 +688,72 @@ function updateTagDisplay() {
       html += '<span class="count" style="font-size:18px; font-weight:700; color:var(--primary)">' + itemCounts[name] + '</span>';
       html += '</div>';
     });
-    if (unknownCount > 0) {
-      html += '<div class="tag-item" style="justify-content:space-between">';
-      html += '<span style="font-weight:600; color:var(--warning)">未登録タグ</span>';
-      html += '<span class="count" style="font-size:18px; font-weight:700; color:var(--warning)">' + unknownCount + '</span>';
-      html += '</div>';
-    }
     html += '</div>';
+
+    if (unknownCount > 0) {
+      html += '<div class="unknown-tags-section">';
+      html += '<h3>⚠️ 不明タグ（在庫対象外）</h3>';
+      html += '<div class="unknown-tags-list">';
+      unknownTags.forEach(function(tag) {
+        html += '<div class="unknown-tag-item">' + tag + '</div>';
+      });
+      html += '</div></div>';
+    }
+
     html += '<div style="text-align:right; margin-top:8px; padding-top:8px; border-top:1px solid var(--border)">';
     html += '<span style="font-size:12px; color:var(--text2)">合計</span> ';
-    html += '<span style="font-size:22px; font-weight:700">' + count + '</span>';
+    html += '<span style="font-size:22px; font-weight:700">' + knownCount + '</span>';
+    if (unknownCount > 0) {
+      html += ' <span style="font-size:12px; color:var(--warning)">+ 不明' + unknownCount + '件</span>';
+    }
     html += '<span style="font-size:12px; color:var(--text2)"> 件</span>';
     html += '</div>';
   }
   document.getElementById('tag-list').innerHTML = html;
 
   var btn = document.getElementById('exec-btn');
-  btn.disabled = count === 0;
-  btn.textContent = 'スキャン実行（' + count + '件）';
+  btn.disabled = knownCount === 0;
+  btn.textContent = 'スキャン実行（' + knownCount + '件' + (unknownCount > 0 ? ' + 不明' + unknownCount + '件' : '') + '）';
+}
+
+// ==================== タグ表示更新（棚卸し） ====================
+function updateStocktakeTagDisplay() {
+  var knownCount = stockTags.length;
+  var unknownCount = stockUnknownTags.length;
+  var totalCount = knownCount + unknownCount;
+
+  document.getElementById('stocktake-tag-count-num').textContent = totalCount;
+
+  var itemCounts = {};
+  stockTags.forEach(function(tag) {
+    var itemName = tagItemMap[tag];
+    if (itemName) {
+      itemCounts[itemName] = (itemCounts[itemName] || 0) + 1;
+    }
+  });
+
+  var html = '';
+  if (knownCount > 0 || unknownCount > 0) {
+    html += '<div style="display:flex; flex-direction:column; gap:6px">';
+    Object.keys(itemCounts).forEach(function(name) {
+      html += '<div class="tag-item" style="justify-content:space-between">';
+      html += '<span style="font-weight:600">' + name + '</span>';
+      html += '<span class="count" style="font-size:18px; font-weight:700; color:var(--primary)">' + itemCounts[name] + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    if (unknownCount > 0) {
+      html += '<div class="unknown-tags-section">';
+      html += '<h3>⚠️ 不明タグ（在庫対象外）</h3>';
+      html += '<div class="unknown-tags-list">';
+      stockUnknownTags.forEach(function(tag) {
+        html += '<div class="unknown-tag-item">' + tag + '</div>';
+      });
+      html += '</div></div>';
+    }
+  }
+  document.getElementById('stocktake-tag-list').innerHTML = html;
 }
 
 // ==================== テスト用手動入力 ====================
@@ -563,7 +763,13 @@ function addManualTags() {
   var added = 0;
   lines.forEach(function(line) {
     var tag = line.trim();
-    if (tag && scannedTags.indexOf(tag) === -1) { scannedTags.push(tag); added++; }
+    if (tag) {
+      if (currentMode === 'scan' && !scannedTagSet[tag]) {
+        scannedTags.push(tag);
+        scannedTagSet[tag] = true;
+        added++;
+      }
+    }
   });
   document.getElementById('manual-tags').value = '';
   updateTagDisplay();
@@ -574,7 +780,6 @@ function loadTestTags() {
   if (!API_URL) return;
   apiGet('tags').then(function(r) {
     if (!r.success || !r.tags.length) return;
-    // tagItemMapを構築
     r.tags.forEach(function(t) {
       tagItemMap[t.id] = t.itemName || t.itemCode || '不明';
     });
@@ -619,6 +824,9 @@ function doExecuteScan() {
       showScanResult(r);
       toast(opType + '完了: ' + r.totalScanned + '件', 'ok');
       scannedTags = [];
+      scannedTagSet = {};
+      unknownTags = [];
+      unknownTagSet = {};
       updateTagDisplay();
     } else {
       toast('エラー: ' + r.error, 'err');
@@ -648,6 +856,146 @@ function showScanResult(r) {
   }
   html += '</div>';
   document.getElementById('scan-result').innerHTML = html;
+}
+
+// ==================== 棚卸し ====================
+function startStocktake() {
+  currentMode = 'stocktake';
+  stockTags = [];
+  stockTagSet = {};
+  stockUnknownTags = [];
+  stockUnknownTagSet = {};
+
+  document.getElementById('stocktake-start-btn').style.display = 'none';
+  document.getElementById('stocktake-finish-btn').style.display = 'block';
+  document.getElementById('stocktake-cancel-btn').style.display = 'block';
+  document.getElementById('stocktake-scan-area').style.display = 'block';
+  document.getElementById('stocktake-result').style.display = 'none';
+
+  document.getElementById('scan-input').focus();
+  toast('棚卸しモード開始', 'ok');
+}
+
+function cancelStocktake() {
+  currentMode = 'scan';
+  stockTags = [];
+  stockTagSet = {};
+  stockUnknownTags = [];
+  stockUnknownTagSet = {};
+
+  document.getElementById('stocktake-start-btn').style.display = 'block';
+  document.getElementById('stocktake-finish-btn').style.display = 'none';
+  document.getElementById('stocktake-cancel-btn').style.display = 'none';
+  document.getElementById('stocktake-scan-area').style.display = 'none';
+  document.getElementById('stocktake-result').style.display = 'none';
+
+  toast('棚卸しキャンセル', 'ok');
+}
+
+function finishStocktake() {
+  if (stockTags.length === 0) {
+    toast('タグがスキャンされていません', 'err');
+    return;
+  }
+
+  var btn = document.getElementById('stocktake-finish-btn');
+  btn.disabled = true;
+  btn.textContent = '処理中...';
+
+  // インベントリAPIからすべてのタグを取得
+  apiGet('inventory')
+    .then(function(r) {
+      if (!r.success) {
+        toast('在庫データの取得に失敗', 'err');
+        btn.disabled = false;
+        btn.textContent = '棚卸し完了';
+        return;
+      }
+
+      // APIから返されたすべてのタグIDを集める
+      var systemTagSet = {};
+      r.allTags.forEach(function(tag) {
+        systemTagSet[tag] = true;
+      });
+
+      // 比較処理
+      var matchedTags = [];
+      var missingTags = [];
+      var extraTags = [];
+
+      // スキャン済みで在庫にあるもの
+      stockTags.forEach(function(tag) {
+        if (systemTagSet[tag]) {
+          matchedTags.push(tag);
+        } else {
+          extraTags.push(tag);
+        }
+      });
+
+      // スキャン漏れ（在庫にあるのにスキャンされていない）
+      Object.keys(systemTagSet).forEach(function(tag) {
+        var scannedSet = {};
+        stockTags.forEach(function(t) { scannedSet[t] = true; });
+        if (!scannedSet[tag]) {
+          missingTags.push(tag);
+        }
+      });
+
+      showStocktakeResult(matchedTags, missingTags, extraTags);
+      btn.disabled = false;
+      btn.textContent = '棚卸し完了';
+    })
+    .catch(function(e) {
+      toast('通信エラー: ' + e.message, 'err');
+      btn.disabled = false;
+      btn.textContent = '棚卸し完了';
+    });
+}
+
+function showStocktakeResult(matched, missing, extra) {
+  var html = '<div class="stocktake-results">';
+
+  html += '<div class="stocktake-result-section stocktake-result-matched">';
+  html += '<h3>✓ 在庫一致 <span class="stocktake-result-count">' + matched.length + '</span> 件</h3>';
+  if (matched.length > 0) {
+    html += '<div style="font-size:12px; color:var(--success); margin-top:6px">スキャン済みで在庫にあるタオル</div>';
+  }
+  html += '</div>';
+
+  html += '<div class="stocktake-result-section stocktake-result-missing">';
+  html += '<h3>⚠️ スキャン漏れ <span class="stocktake-result-count">' + missing.length + '</span> 件</h3>';
+  if (missing.length > 0) {
+    html += '<div style="font-size:12px; color:var(--warning); margin-top:6px">在庫にあるのにスキャンされなかったタオル</div>';
+    html += '<div style="margin-top:8px; max-height:150px; overflow-y:auto">';
+    missing.forEach(function(tag) {
+      html += '<div style="font-size:12px; padding:4px 0; border-bottom:1px solid rgba(0,0,0,.1); font-family:monospace">' + tag + '</div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  html += '<div class="stocktake-result-section stocktake-result-extra">';
+  html += '<h3>❌ 未登録 <span class="stocktake-result-count">' + extra.length + '</span> 件</h3>';
+  if (extra.length > 0) {
+    html += '<div style="font-size:12px; color:var(--danger); margin-top:6px">スキャンしたが在庫に無いタオル</div>';
+    html += '<div style="margin-top:8px; max-height:150px; overflow-y:auto">';
+    extra.forEach(function(tag) {
+      html += '<div style="font-size:12px; padding:4px 0; border-bottom:1px solid rgba(0,0,0,.1); font-family:monospace">' + tag + '</div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  html += '</div>';
+
+  document.getElementById('stocktake-result').innerHTML = html;
+  document.getElementById('stocktake-result').style.display = 'block';
+
+  currentMode = 'scan';
+  document.getElementById('stocktake-start-btn').style.display = 'block';
+  document.getElementById('stocktake-finish-btn').style.display = 'none';
+  document.getElementById('stocktake-cancel-btn').style.display = 'none';
+  document.getElementById('stocktake-scan-area').style.display = 'none';
 }
 
 // ==================== 物件マスタ ====================
