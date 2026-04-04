@@ -643,8 +643,10 @@ document.addEventListener('DOMContentLoaded', function() {
   var AUTO_FLUSH_MS = 80; // 80ms入力停止でタグ確定（Enter不要時のフォールバック）
 
   // タグを内部キューに追加（DOM更新はデバウンス）
+  // スキャン中または棚卸し中でなければ無視
   function _queueTag(val) {
     if (!val) return;
+    if (!isScanning && currentMode !== 'stocktake') return;
     _pendingTags.push(val);
     if (_displayTimer) clearTimeout(_displayTimer);
     _displayTimer = setTimeout(function() {
@@ -753,14 +755,6 @@ function toggleScan() {
 
 function startScan() {
   isScanning = true;
-
-  // スキャン開始前に蓄積されたデータをクリア（トリガー先押し時の重複防止）
-  scannedTags = [];
-  scannedTagSet = {};
-  unknownTags = [];
-  unknownTagSet = {};
-  updateTagDisplay();
-
   var area = document.getElementById('scan-area');
   area.classList.add('scanning');
   document.getElementById('scan-icon').textContent = '🔄';
