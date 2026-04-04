@@ -753,6 +753,14 @@ function toggleScan() {
 
 function startScan() {
   isScanning = true;
+
+  // スキャン開始前に蓄積されたデータをクリア（トリガー先押し時の重複防止）
+  scannedTags = [];
+  scannedTagSet = {};
+  unknownTags = [];
+  unknownTagSet = {};
+  updateTagDisplay();
+
   var area = document.getElementById('scan-area');
   area.classList.add('scanning');
   document.getElementById('scan-icon').textContent = '🔄';
