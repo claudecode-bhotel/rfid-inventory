@@ -85,6 +85,9 @@ function doPost(e) {
       case 'scan':
         result = executeScan(body.operationType, body.tagIds, body.propertyId || '', body.operator || '');
         break;
+      case 'stainRemoval':
+        result = executeStainRemoval(body.tagIds, body.operator || '');
+        break;
       case 'init':
         result = initializeSystem();
         break;
@@ -235,17 +238,17 @@ function _initTagMaster() {
 function _initInventory() {
   var s = sheet_(CONFIG.SHEETS.INVENTORY);
   if (s.getLastRow() > 0) s.clearContents();
-  s.appendRow(['タグID', '品目コード', 'ステータス', '所在', '最終搬入先', '最終操作', '最終スキャン日時', '最終更新日時']);
-  s.getRange(1, 1, 1, 8).setFontWeight('bold');
+  s.appendRow(['タグID', '品目コード', 'ステータス', '所在', '最終搬入先', '最終操作', '最終スキャン日時', '最終更新日時', '洗濯回数', '染み抜き回数']);
+  s.getRange(1, 1, 1, 10).setFontWeight('bold');
   var tagSheet = sheet_(CONFIG.SHEETS.TAG_MASTER);
   var lastRow = tagSheet.getLastRow();
   if (lastRow <= 1) return;
   var tags = tagSheet.getRange(2, 1, lastRow - 1, 2).getValues();
   var d = now_();
   var rows = tags.map(function(t) {
-    return [t[0], t[1], 'クリーン', 'メイン倉庫', '', '初期登録', d, d];
+    return [t[0], t[1], 'クリーン', 'メイン倉庫', '', '初期登録', d, d, 0, 0];
   });
-  s.getRange(2, 1, rows.length, 8).setValues(rows);
+  s.getRange(2, 1, rows.length, 10).setValues(rows);
 }
 
 function _initScanHistory() {
@@ -346,7 +349,7 @@ function executeScan(operationType, tagIds, propertyId, operator) {
     var invLR = invSheet.getLastRow();
     var invMap = {};
     if (invLR > 1) {
-      var invData = invSheet.getRange(2, 1, invLR - 1, 8).getValues();
+      var invData = invSheet.getRange(2, 1, invLR - 1, 10).getValues();
       invData.forEach(function(r, idx) {
         invMap[r[0]] = { row: idx + 2, data: r };
       });
@@ -392,14 +395,20 @@ function executeScan(operationType, tagIds, propertyId, operator) {
 
       if (invMap[tagId]) {
         var r = invMap[tagId].row;
+        var prevStatus = invMap[tagId].data[2]; // 変更前のステータス
         invSheet.getRange(r, 3).setValue(newStatus);
         invSheet.getRange(r, 4).setValue(newLocation);
         if (destination) invSheet.getRange(r, 5).setValue(destination);
         invSheet.getRange(r, 6).setValue(operationType);
         invSheet.getRange(r, 7).setValue(d);
         invSheet.getRange(r, 8).setValue(d);
+        // 入庫時（出庫中→クリーン）に洗濯回数を+1
+        if (operationType === '入庫' && prevStatus === '出庫中') {
+          var washCount = invMap[tagId].data[8] || 0;
+          invSheet.getRange(r, 9).setValue(washCount + 1);
+        }
       } else {
-        invSheet.appendRow([tagId, itemCode, newStatus, newLocation, destination, operationType, d, d]);
+        invSheet.appendRow([tagId, itemCode, newStatus, newLocation, destination, operationType, d, d, 0, 0]);
       }
 
       var iName = itemNameMap[itemCode] || itemCode;
@@ -423,6 +432,103 @@ function executeScan(operationType, tagIds, propertyId, operator) {
       operationType: operationType,
       totalScanned: uniqueTags.length,
       itemCounts: results.itemCounts,
+      warnings: results.warnings,
+    };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ==================== 染み抜き処理 ====================
+
+function executeStainRemoval(tagIds, operator) {
+  try {
+    if (!tagIds || tagIds.length === 0) {
+      return { success: false, error: 'タグが読み取られていません' };
+    }
+
+    tagIds = _preprocessTagIds(tagIds);
+    if (tagIds.length === 0) {
+      return { success: false, error: '有効なタグがありません' };
+    }
+
+    var tagItemMap = _getTagItemMap();
+    var itemNameMap = _getItemNameMap();
+    var invSheet = sheet_(CONFIG.SHEETS.INVENTORY);
+    var histSheet = sheet_(CONFIG.SHEETS.SCAN_HISTORY);
+    var d = now_();
+    var op = operator || '共通アカウント';
+
+    var invLR = invSheet.getLastRow();
+    var invMap = {};
+    if (invLR > 1) {
+      var invData = invSheet.getRange(2, 1, invLR - 1, 10).getValues();
+      invData.forEach(function(r, idx) {
+        invMap[r[0]] = { row: idx + 2, data: r };
+      });
+    }
+
+    var uniqueTags = [];
+    var seen = {};
+    tagIds.forEach(function(t) {
+      var tid = String(t).trim();
+      if (tid && !seen[tid]) {
+        seen[tid] = true;
+        uniqueTags.push(tid);
+      }
+    });
+
+    var results = { processed: 0, warnings: [], itemCounts: {}, tagDetails: [] };
+    var histRows = [];
+
+    uniqueTags.forEach(function(tagId) {
+      var itemCode = tagItemMap[tagId];
+      var warning = '';
+      var errorType = '';
+
+      if (!itemCode) {
+        warning = '未登録タグ';
+        errorType = '未登録';
+        results.warnings.push(tagId + ': 未登録タグ');
+        return; // 未登録タグは染み抜き対象外
+      }
+
+      if (invMap[tagId]) {
+        var r = invMap[tagId].row;
+        var stainCount = invMap[tagId].data[9] || 0;
+        var newStainCount = stainCount + 1;
+        invSheet.getRange(r, 10).setValue(newStainCount);
+        invSheet.getRange(r, 8).setValue(d); // 最終更新日時
+
+        var iName = itemNameMap[itemCode] || itemCode;
+        results.itemCounts[iName] = (results.itemCounts[iName] || 0) + 1;
+        results.tagDetails.push({
+          tagId: tagId,
+          itemName: iName,
+          stainCount: newStainCount,
+          washCount: invMap[tagId].data[8] || 0
+        });
+      } else {
+        warning = '在庫未登録';
+        errorType = '在庫未登録';
+        results.warnings.push(tagId + ': 在庫に未登録');
+      }
+
+      histRows.push([uuid_(), d, '染み抜き', '', tagId, itemCode || '不明', op, warning ? true : false, errorType, '送信済']);
+      results.processed++;
+    });
+
+    if (histRows.length > 0) {
+      var hlr = histSheet.getLastRow();
+      histSheet.getRange(hlr + 1, 1, histRows.length, 10).setValues(histRows);
+    }
+
+    return {
+      success: true,
+      operationType: '染み抜き',
+      totalProcessed: results.processed,
+      itemCounts: results.itemCounts,
+      tagDetails: results.tagDetails,
       warnings: results.warnings,
     };
   } catch (e) {
@@ -469,21 +575,31 @@ function getInventorySummary() {
     var lr = invSheet.getLastRow();
     if (lr <= 1) return { success: true, summary: [], total: { clean: 0, all: 0, shipped: 0 } };
 
-    var data = invSheet.getRange(2, 1, lr - 1, 8).getValues();
+    var data = invSheet.getRange(2, 1, lr - 1, 10).getValues();
     var itemNameMap = _getItemNameMap();
 
     var stats = {};
     var allTags = []; // 棚卸し用：全タグIDリスト
+    var tagLocationMap = {}; // 棚卸し用：タグID → 所在マップ
+    var tagDetailMap = {}; // タグ詳細情報マップ
     data.forEach(function(r) {
       var tagId = r[0]; // タグID（A列）
       var itemCode = r[1];
       var status = r[2];
+      var location = r[3] || ''; // 所在（D列）
+      var washCount = r[8] || 0; // 洗濯回数（I列）
+      var stainCount = r[9] || 0; // 染み抜き回数（J列）
       var itemName = itemNameMap[itemCode] || itemCode;
       if (!stats[itemName]) stats[itemName] = { name: itemName, code: itemCode, clean: 0, all: 0, shipped: 0 };
       stats[itemName].all++;
       if (status === 'クリーン') stats[itemName].clean++;
       if (status === '出庫中') stats[itemName].shipped++;
-      if (tagId) allTags.push(String(tagId).toUpperCase());
+      if (tagId) {
+        var tid = String(tagId).toUpperCase();
+        allTags.push(tid);
+        tagLocationMap[tid] = location;
+        tagDetailMap[tid] = { washCount: washCount, stainCount: stainCount, status: status, itemName: itemName };
+      }
     });
 
     var summary = Object.keys(stats).map(function(k) { return stats[k]; });
@@ -496,7 +612,7 @@ function getInventorySummary() {
       total.shipped += s.shipped;
     });
 
-    return { success: true, summary: summary, total: total, allTags: allTags };
+    return { success: true, summary: summary, total: total, allTags: allTags, tagLocationMap: tagLocationMap, tagDetailMap: tagDetailMap };
   } catch (e) { return { success: false, error: e.message }; }
 }
 
