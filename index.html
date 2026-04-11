@@ -102,7 +102,7 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 .scan-area .scan-label { font-size: 14px; color: var(--text2); font-weight: 500; }
 .scan-area.scanning .scan-label { color: var(--primary-dark); font-weight: 700; }
 .scan-count { font-size: 28px; font-weight: 800; color: var(--primary); margin: 8px 0; }
-#scan-input { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; z-index: -1; }
+#scan-input { position: fixed; top: -100px; left: 0; width: 10px; height: 10px; opacity: 0.01; z-index: 1; caret-color: transparent; }
 
 /* ========== タグリスト ========== */
 .tag-list { margin: 8px 0; }
@@ -861,21 +861,67 @@ function toggleScan() {
   else startScan();
 }
 
+
+// ==================== グローバルキーストロークバッファ ====================
+var _globalKeyBuf = '';
+var _globalKeyTimer = null;
+var GLOBAL_KEY_TIMEOUT = 100;
+
+document.addEventListener('keydown', function(e) {
+  var ae = document.activeElement;
+  if (ae && ae.tagName === 'TEXTAREA') return;
+  if (ae && ae.tagName === 'INPUT' && ae.id !== 'scan-input') return;
+  if (ae && ae.id === 'scan-input') return;
+  if (!isScanning) return;
+
+  if (e.key === 'Enter' || e.keyCode === 13) {
+    e.preventDefault();
+    if (_globalKeyTimer) clearTimeout(_globalKeyTimer);
+    var val = _globalKeyBuf.trim();
+    _globalKeyBuf = '';
+    if (val) {
+      console.log('[GlobalKeyCap] Enter確定:', val);
+      _queueTag(val);
+    }
+    return;
+  }
+
+  if (e.key && e.key.length === 1) {
+    _globalKeyBuf += e.key;
+    if (_globalKeyTimer) clearTimeout(_globalKeyTimer);
+    _globalKeyTimer = setTimeout(function() {
+      var val = _globalKeyBuf.trim();
+      if (val && val.length >= 16) {
+        console.log('[GlobalKeyCap] タイムアウト確定:', val);
+        _queueTag(val);
+      }
+      _globalKeyBuf = '';
+    }, GLOBAL_KEY_TIMEOUT);
+  }
+});
+
 function startScan() {
   isScanning = true;
   var area = document.getElementById('scan-area');
   area.classList.add('scanning');
-  document.getElementById('scan-icon').textContent = '🔄';
+  document.getElementById('scan-icon').textContent = '\u{1F504}';
   document.getElementById('scan-label').textContent = t('scan.scanning');
   document.getElementById('scan-count').style.display = 'block';
 
   var input = document.getElementById('scan-input');
   input.value = '';
-  input.focus({ preventScroll: true });
+  input.readOnly = false;
+  input.disabled = false;
+  input.style.position = 'fixed';
+  input.style.top = '-50px';
+  input.style.opacity = '0.01';
+  setTimeout(function() { input.focus({ preventScroll: true }); }, 50);
 
   window._scanFocusInterval = setInterval(function() {
-    if (isScanning && document.activeElement !== input) input.focus({ preventScroll: true });
-  }, 500);
+    if (isScanning && document.activeElement !== input) {
+      input.focus({ preventScroll: true });
+    }
+  }, 300);
 }
 
 function stopScan() {
