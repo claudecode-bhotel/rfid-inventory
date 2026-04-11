@@ -175,6 +175,16 @@ textarea { min-height: 80px; resize: vertical; font-family: monospace; font-size
 /* ========== テスト入力 ========== */
 .test-section { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px; }
 .test-section summary { font-size: 13px; color: var(--text2); cursor: pointer; font-weight: 600; }
+
+/* Debug Panel */
+#debug-panel { position: fixed; bottom: 0; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.9); color: #0f0; font-family: monospace; font-size: 11px; z-index: 9999; padding: 8px; display: none; }
+#debug-panel.show { display: block; }
+#debug-toggle { position: fixed; bottom: 10px; right: 10px; z-index: 10000; background: #333; color: #0f0; border: 1px solid #0f0; border-radius: 50%; width: 40px; height: 40px; font-size: 16px; cursor: pointer; }
+#debug-panel .log-line { border-bottom: 1px solid #333; padding: 2px 0; }
+.log-key { color: #ff0; }
+.log-focus { color: #0ff; }
+.log-tag { color: #f0f; }
+
 </style>
 </head>
 <body>
@@ -1679,6 +1689,40 @@ function toast(msg, type) {
   clearTimeout(window._toastTimer);
   window._toastTimer = setTimeout(function() { el.className = 'toast'; }, 3000);
 }
+
+// ==================== デバッグパネル ====================
+var _debugLog = [];
+function debugLog(type, msg) {
+  var ts = new Date().toLocaleTimeString();
+  _debugLog.push({ts: ts, type: type, msg: msg});
+  if (_debugLog.length > 100) _debugLog.shift();
+  var panel = document.getElementById('debug-panel');
+  if (!panel) return;
+  var cls = type === 'key' ? 'log-key' : type === 'focus' ? 'log-focus' : 'log-tag';
+  panel.innerHTML += '<div class="log-line ' + cls + '">[' + ts + '] ' + type + ': ' + msg + '</div>';
+  panel.scrollTop = panel.scrollHeight;
+}
+document.addEventListener('keydown', function(e) {
+  debugLog('key', 'keydown key=' + e.key + ' code=' + e.code + ' target=' + (e.target.id || e.target.tagName));
+}, true);
+document.addEventListener('keyup', function(e) {
+  debugLog('key', 'keyup key=' + e.key + ' target=' + (e.target.id || e.target.tagName));
+}, true);
+document.addEventListener('input', function(e) {
+  debugLog('input', 'input target=' + (e.target.id || e.target.tagName) + ' value=' + (e.target.value || '').substring(0, 50));
+}, true);
+document.addEventListener('focus', function(e) {
+  debugLog('focus', 'focus -> ' + (e.target.id || e.target.tagName));
+}, true);
+document.addEventListener('blur', function(e) {
+  debugLog('focus', 'blur <- ' + (e.target.id || e.target.tagName));
+}, true);
+debugLog('info', 'Debug panel ready. Tap DB button.');
+
 </script>
+
+<div id="debug-panel"></div>
+<button id="debug-toggle" onclick="var p=document.getElementById('debug-panel');p.classList.toggle('show');">DB</button>
+
 </body>
 </html>
